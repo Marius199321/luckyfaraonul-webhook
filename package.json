@@ -1,0 +1,15 @@
+{
+  "name": "luckyfaraonul-webhook",
+  "version": "1.0.0",
+  "description": "Webhook backend for LuckyFaraonul",
+  "main": "api/webhook.js",
+  "scripts": {
+    "start": "node api/webhook.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "stripe": "^12.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  }
+}
