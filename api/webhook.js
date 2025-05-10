@@ -6,7 +6,6 @@ import { buffer } from 'micro';
 import { generateTickets } from './helpers/generateTickets.js';
 import { generateOrderNumber } from './helpers/generateOrderNumber.js';
 import { checkInstantWin } from './helpers/instantWinChecker.js';
-import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -41,6 +40,9 @@ export default async function handler(req, res) {
       const qty = parseInt(metadata.qty);
       const productId = metadata.productId;
       const productName = metadata.productName;
+
+      // 👉 Dynamic import pentru node-fetch
+      const fetch = (await import('node-fetch')).default;
 
       // 1. Obține produsul din CMS
       const productRes = await fetch(`https://www.wixapis.com/v1/collections/giveaways/items/query`, {
@@ -102,8 +104,6 @@ export default async function handler(req, res) {
           createdAt: new Date().toISOString()
         })
       });
-
-      // 7. (opțional) Trimitere email aici...
 
       return res.status(200).json({ success: true });
     } catch (err) {
