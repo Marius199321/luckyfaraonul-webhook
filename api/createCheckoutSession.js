@@ -1,10 +1,17 @@
+import Stripe from 'stripe';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 export default async function handler(req, res) {
-  // ✅ Adaugă aceste 3 linii pentru CORS:
+  // ✅ CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // ✅ Răspunde la cererile OPTIONS (preflight CORS)
+  // ✅ Preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
