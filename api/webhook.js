@@ -16,7 +16,7 @@ export const config = {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const wixBackendUrl = process.env.WIX_BACKEND_URL;
 
-// ✅ Obține biletele deja folosite
+// ✅ Funcție sigură pentru preluarea biletelor deja folosite
 async function getUsedTickets(productId) {
   const url = `${wixBackendUrl}/getUsedTickets?productId=${productId}`;
 
@@ -30,7 +30,7 @@ async function getUsedTickets(productId) {
   }
 }
 
-// ✅ Trimite comanda către Wix CMS
+// ✅ Trimite comanda completă către Wix (savePurchase.jsw)
 async function savePurchase(purchase) {
   try {
     const response = await fetch(`${wixBackendUrl}/savePurchase`, {
@@ -50,7 +50,7 @@ async function savePurchase(purchase) {
   }
 }
 
-// ✅ Webhook Stripe principal
+// ✅ Webhook handler pentru Stripe
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed');
@@ -70,6 +70,7 @@ export default async function handler(req, res) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
+    // ✅ Preluare date din sesiunea Stripe
     const qty = parseInt(session.metadata.qty, 10);
     const productId = session.metadata.productId;
     const productName = session.metadata.productName;
@@ -82,17 +83,20 @@ export default async function handler(req, res) {
     const postcode = session.customer_details.address?.postal_code || '';
     const country = session.customer_details.address?.country || '';
 
+    // ✅ Generare bilete unice
     const maxTickets = 80000;
     const usedTickets = await getUsedTickets(productId);
     const generatedTickets = generateTickets(qty, maxTickets, usedTickets);
     const orderNumber = generateOrderNumber();
 
+    // ✅ Verificare câștig Instant Win
     const instantPrizes = [
       { number: 1234, prize: 'Win £1000' },
       { number: 8888, prize: 'Win £500' }
     ];
     const instantWinners = checkInstantWin(generatedTickets, instantPrizes);
 
+    // ✅ Salvare achiziție în Wix
     await savePurchase({
       qty,
       productId,
