@@ -1,9 +1,9 @@
 import Stripe from 'stripe';
 import dotenv from 'dotenv';
 import { buffer } from 'micro';
-import { generateTickets } from './helpers/generateTickets.js';
-import { generateOrderNumber } from './helpers/generateOrderNumber.js';
-import { checkInstantWin } from './helpers/instantWinChecker.js';
+import { generateTickets } from './generateTickets.js';
+import { generateOrderNumber } from './generateOrderNumber.js';
+import { checkInstantWin } from './instantWinChecker.js';
 
 dotenv.config();
 

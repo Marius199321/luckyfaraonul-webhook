@@ -1,4 +1,4 @@
-// api/helpers/instantWinChecker.js
+// api/instantWinChecker.js
 
 /**
  * Verifică dacă biletele generate conțin câștiguri instant.

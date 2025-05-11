@@ -1,4 +1,4 @@
-// api/helpers/generateOrderNumber.js
+// api/generateOrderNumber.js
 
 /**
  * Generează un order number unic în formatul: ORD-YYYYMMDD-ABC123

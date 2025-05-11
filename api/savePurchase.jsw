@@ -1,0 +1,39 @@
+// api/savePurchase.jsw
+
+import { insert } from 'wix-data';
+
+/**
+ * Salvează comanda după ce plata a fost confirmată
+ * @param {Object} order
+ * @param {string} order.productId
+ * @param {string} order.productName
+ * @param {number} order.qty
+ * @param {number} order.amount
+ * @param {string} order.email
+ * @param {string} order.name
+ * @param {string} order.phone
+ * @param {string} order.address
+ * @param {string} order.postcode
+ * @param {string} order.country
+ * @param {string} order.orderNumber
+ * @param {Array<number>} order.generatedTickets
+ * @param {Array<Object>} order.instantWinners
+ */
+export async function savePurchase(order) {
+  return insert('TicketsPurchases', {
+    title: order.orderNumber, // câmp special pt. order number
+    productId: order.productId,
+    productName: order.productName,
+    qty: order.qty,
+    amount: order.amount,
+    email: order.email,
+    name: order.name,
+    phone: order.phone,
+    address: order.address,
+    postcode: order.postcode,
+    country: order.country,
+    orderNumber: order.orderNumber,
+    tickets: order.generatedTickets,
+    instantWinners: order.instantWinners || []
+  });
+}
