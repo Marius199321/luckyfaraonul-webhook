@@ -1,5 +1,3 @@
-// api/webhook.js
-
 import Stripe from 'stripe';
 import dotenv from 'dotenv';
 import { buffer } from 'micro';
@@ -57,9 +55,14 @@ export default async function handler(req, res) {
         })
       });
 
+      if (!productRes.ok) {
+        const text = await productRes.text();
+        throw new Error(`❌ Eroare la fetch product: ${productRes.status} ${text}`);
+      }
+
       const productData = await productRes.json();
       const product = productData.items?.[0];
-      if (!product) throw new Error('Produsul nu a fost găsit în CMS.');
+      if (!product) throw new Error('❌ Produsul nu a fost găsit în CMS.');
 
       const maxTickets = product.totalTickets;
 
@@ -69,6 +72,11 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId })
       });
+
+      if (!usedRes.ok) {
+        const text = await usedRes.text();
+        throw new Error(`❌ Eroare la fetch bilete existente: ${usedRes.status} ${text}`);
+      }
 
       const usedTickets = await usedRes.json();
 
@@ -84,7 +92,7 @@ export default async function handler(req, res) {
       const isInstantWin = instantWinners.length > 0;
 
       // 6. Salvează în CMS
-      await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
+      const saveRes = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,6 +114,12 @@ export default async function handler(req, res) {
         })
       });
 
+      if (!saveRes.ok) {
+        const text = await saveRes.text();
+        throw new Error(`❌ Eroare la salvarea achiziției în CMS: ${saveRes.status} ${text}`);
+      }
+
+      console.log('✅ Comanda a fost salvată cu succes.');
       return res.status(200).json({ success: true });
     } catch (error) {
       console.error('❌ Error handling payment:', error);
