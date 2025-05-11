@@ -5,27 +5,30 @@ dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ✅ Stripe price ID fix (din dashboard)
+const PRICE_ID = 'price_1RNYvuQsmtbok5qVb8zgUqFa';
+
 export default async function handler(req, res) {
-  // ✅ CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // ✅ Preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
+  if (req.method !== 'POST') {
+    return res.status(405).end('Method Not Allowed');
+  }
 
   try {
-    const { qty, productId, productName, stripePriceId } = req.body;
+    const { qty, productId, productName } = req.body;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price: stripePriceId,
+          price: PRICE_ID,
           quantity: qty
         }
       ],
@@ -45,4 +48,3 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
-
