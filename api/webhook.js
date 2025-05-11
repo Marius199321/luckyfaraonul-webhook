@@ -1,11 +1,11 @@
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { config } from 'dotenv';
+import { config as loadEnv } from 'dotenv'; // ✅ redenumit ca să evităm conflictul
 import { generateTickets } from './generateTickets.js';
 import { generateOrderNumber } from './generateOrderNumber.js';
 import { checkInstantWin } from './instantWinChecker.js';
 
-config();
+loadEnv(); // ✅ inițializare corectă
 
 // 🔧 CONFIG pentru Vercel – DEZACTIVEAZĂ body-parser-ul implicit
 export const config = {
