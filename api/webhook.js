@@ -32,75 +32,89 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    console.log('--- SESSION OBJECT ---', session);
 
     try {
-      const metadata = session.metadata;
+      const metadata = session.metadata || {};
       const qty = parseInt(metadata.qty);
       const productId = metadata.productId;
       const productName = metadata.productName;
 
+      if (!qty || !productId || !productName) {
+        console.error('Missing metadata fields');
+        return res.status(400).json({ error: 'Missing metadata' });
+      }
+
       const fetch = (await import('node-fetch')).default;
 
-      // 1. Obține produsul din backend Wix
+      // 1. Get product from Wix
       const productRes = await fetch(`${process.env.WIX_BACKEND_URL}/getProduct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
+        body: JSON.stringify({ productId }),
       });
 
       let productData;
       try {
         productData = await productRes.json();
       } catch (e) {
-        console.error('Invalid JSON in getProduct response');
+        const raw = await productRes.text();
+        console.error('Invalid JSON from getProduct:', raw);
         return res.status(500).json({ error: 'Invalid JSON from getProduct' });
       }
 
       const product = productData?.item;
       if (!product) {
-        console.error('Product not found in response');
-        return res.status(500).json({ error: 'Product not found in Wix CMS' });
+        console.error('Product not found');
+        return res.status(500).json({ error: 'Product not found' });
       }
 
       const maxTickets = product.totalTickets;
+      console.log('Product maxTickets:', maxTickets);
 
-      // 2. Obține biletele deja folosite
+      // 2. Get used tickets
       const usedRes = await fetch(`${process.env.WIX_BACKEND_URL}/getUsedTickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
+        body: JSON.stringify({ productId }),
       });
 
       let usedTickets = [];
       try {
         usedTickets = await usedRes.json();
       } catch (e) {
-        console.error('Invalid JSON in getUsedTickets response');
+        const raw = await usedRes.text();
+        console.error('Invalid JSON from getUsedTickets:', raw);
         return res.status(500).json({ error: 'Invalid JSON from getUsedTickets' });
       }
 
-      // 3. Generează biletele
+      // 3. Generate tickets
       const tickets = generateTickets(qty, maxTickets, usedTickets);
+      console.log('Generated tickets:', tickets);
 
-      // 4. Generează order number
+      // 4. Generate order number
       const orderNumber = generateOrderNumber();
 
-      // 5. Verifică câștig instant
+      // 5. Instant win
       const instantPrizes = product.instantWinPrizes || [];
       const instantWinners = checkInstantWin(tickets, instantPrizes);
       const isInstantWin = instantWinners.length > 0;
+      console.log('Instant winners:', instantWinners);
 
-      // 6. Salvează comanda în CMS
+      // 6. Save to CMS
+      const customer = session.customer_details || {};
+      const address = customer.address || {};
+
       const saveRes = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: session.customer_details.name,
-          email: session.customer_details.email,
-          phone: session.customer_details.phone || '',
-          address: session.customer_details.address?.line1 || '',
-          country: session.customer_details.address?.country || '',
-          postcode: session.customer_details.address?.postal_code || '',
+          fullName: customer.name || '',
+          email: customer.email || '',
+          phone: customer.phone || '',
+          address: address.line1 || '',
+          country: address.country || '',
+          postcode: address.postal_code || '',
           amountPaid: session.amount_total / 100,
           currency: session.currency,
           qty,
@@ -109,15 +123,16 @@ export default async function handler(req, res) {
           productName,
           orderNumber,
           instantWin: isInstantWin,
-          createdAt: new Date().toISOString()
-        })
+          createdAt: new Date().toISOString(),
+        }),
       });
 
       let saveResult = {};
       try {
         saveResult = await saveRes.json();
       } catch (e) {
-        console.error('Invalid JSON in savePurchase response');
+        const raw = await saveRes.text();
+        console.error('Invalid JSON from savePurchase:', raw);
         return res.status(500).json({ error: 'Invalid JSON from savePurchase' });
       }
 
@@ -126,13 +141,14 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: `savePurchase error: ${saveResult.error}` });
       }
 
+      console.log('✅ Purchase saved successfully!');
       return res.status(200).json({ success: true });
     } catch (err) {
-      console.error('Error handling payment:', err.message);
+      console.error('❌ Error handling payment:', err.message);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
 
-  res.status(200).json({ received: true });
+  return res.status(200).json({ received: true });
 }
 
