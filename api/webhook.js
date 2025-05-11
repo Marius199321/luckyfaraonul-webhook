@@ -1,5 +1,3 @@
-// api/webhook.js
-
 import Stripe from 'stripe';
 import { buffer } from 'micro';
 import { config } from 'dotenv';
@@ -9,7 +7,8 @@ import { checkInstantWin } from './instantWinChecker.js';
 
 config();
 
-export const configVercel = {
+// 🔧 CONFIG pentru Vercel – DEZACTIVEAZĂ body-parser-ul implicit
+export const config = {
   api: {
     bodyParser: false,
   },
@@ -18,17 +17,31 @@ export const configVercel = {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const wixBackendUrl = process.env.WIX_BACKEND_URL;
 
+// 🔧 getUsedTickets cu logare dacă răspunsul nu e JSON valid
 async function getUsedTickets(productId) {
-  const response = await fetch(`${wixBackendUrl}/getUsedTickets`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ productId }),
-  });
+  try {
+    const response = await fetch(`${wixBackendUrl}/getUsedTickets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId }),
+    });
 
-  const data = await response.json();
-  return data.usedTickets || [];
+    const text = await response.text();
+
+    try {
+      const data = JSON.parse(text);
+      return data.usedTickets || [];
+    } catch (jsonErr) {
+      console.error('❌ Invalid JSON from getUsedTickets:', text);
+      throw new Error('Invalid JSON from getUsedTickets');
+    }
+  } catch (err) {
+    console.error('❌ Fetch failed for getUsedTickets:', err);
+    throw err;
+  }
 }
 
+// 🔧 savePurchase fără modificări
 async function savePurchase(purchase) {
   await fetch(`${wixBackendUrl}/savePurchase`, {
     method: 'POST',
@@ -37,6 +50,7 @@ async function savePurchase(purchase) {
   });
 }
 
+// ✅ handler principal Stripe Webhook
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed');
