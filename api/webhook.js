@@ -41,38 +41,56 @@ export default async function handler(req, res) {
 
       const fetch = (await import('node-fetch')).default;
 
-      // 🔁 1. Obține produsul din backend Wix
+      // 1. Obține produsul din backend Wix
       const productRes = await fetch(`${process.env.WIX_BACKEND_URL}/getProduct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId })
       });
 
-      const productData = await productRes.json();
-      const product = productData.item;
+      let productData;
+      try {
+        productData = await productRes.json();
+      } catch (e) {
+        console.error('Invalid JSON in getProduct response');
+        return res.status(500).json({ error: 'Invalid JSON from getProduct' });
+      }
+
+      const product = productData?.item;
+      if (!product) {
+        console.error('Product not found in response');
+        return res.status(500).json({ error: 'Product not found in Wix CMS' });
+      }
+
       const maxTickets = product.totalTickets;
 
-      // 🔁 2. Obține biletele deja folosite
+      // 2. Obține biletele deja folosite
       const usedRes = await fetch(`${process.env.WIX_BACKEND_URL}/getUsedTickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId })
       });
 
-      const usedTickets = await usedRes.json();
+      let usedTickets = [];
+      try {
+        usedTickets = await usedRes.json();
+      } catch (e) {
+        console.error('Invalid JSON in getUsedTickets response');
+        return res.status(500).json({ error: 'Invalid JSON from getUsedTickets' });
+      }
 
-      // 🔁 3. Generează biletele
+      // 3. Generează biletele
       const tickets = generateTickets(qty, maxTickets, usedTickets);
 
-      // 🔁 4. Generează order number
+      // 4. Generează order number
       const orderNumber = generateOrderNumber();
 
-      // 🔁 5. Verifică câștig instant
+      // 5. Verifică câștig instant
       const instantPrizes = product.instantWinPrizes || [];
       const instantWinners = checkInstantWin(tickets, instantPrizes);
       const isInstantWin = instantWinners.length > 0;
 
-      // 🔁 6. Salvează comanda în CMS
+      // 6. Salvează comanda în CMS
       const saveRes = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,9 +113,17 @@ export default async function handler(req, res) {
         })
       });
 
-      const saveResult = await saveRes.json();
+      let saveResult = {};
+      try {
+        saveResult = await saveRes.json();
+      } catch (e) {
+        console.error('Invalid JSON in savePurchase response');
+        return res.status(500).json({ error: 'Invalid JSON from savePurchase' });
+      }
+
       if (!saveResult.success) {
-        throw new Error(`Wix savePurchase error: ${saveResult.error}`);
+        console.error('savePurchase failed:', saveResult.error);
+        return res.status(500).json({ error: `savePurchase error: ${saveResult.error}` });
       }
 
       return res.status(200).json({ success: true });
@@ -109,3 +135,4 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
