@@ -41,58 +41,38 @@ export default async function handler(req, res) {
 
       const fetch = (await import('node-fetch')).default;
 
-      // 1. Obține produsul din CMS
-      const productRes = await fetch(`https://www.wixapis.com/v1/collections/giveaways/items/query`, {
+      // 🔁 1. Obține produsul din backend Wix
+      const productRes = await fetch(`${process.env.WIX_BACKEND_URL}/getProduct`, {
         method: 'POST',
-        headers: {
-          Authorization: process.env.WIX_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          filter: { _id: productId }
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId })
       });
 
-      let productData;
-      try {
-        productData = await productRes.json();
-      } catch (err) {
-        throw new Error('Invalid JSON in productRes');
-      }
-
-      if (!productData.items || productData.items.length === 0) {
-        throw new Error('Product not found in Wix CMS');
-      }
-
-      const product = productData.items[0];
+      const productData = await productRes.json();
+      const product = productData.item;
       const maxTickets = product.totalTickets;
 
-      // 2. Obține biletele deja folosite
+      // 🔁 2. Obține biletele deja folosite
       const usedRes = await fetch(`${process.env.WIX_BACKEND_URL}/getUsedTickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId })
       });
 
-      let usedTickets = [];
-      try {
-        usedTickets = await usedRes.json();
-      } catch (err) {
-        throw new Error('Invalid JSON in usedRes');
-      }
+      const usedTickets = await usedRes.json();
 
-      // 3. Generează biletele
+      // 🔁 3. Generează biletele
       const tickets = generateTickets(qty, maxTickets, usedTickets);
 
-      // 4. Generează order number
+      // 🔁 4. Generează order number
       const orderNumber = generateOrderNumber();
 
-      // 5. Verifică dacă sunt câștiguri instant
+      // 🔁 5. Verifică câștig instant
       const instantPrizes = product.instantWinPrizes || [];
       const instantWinners = checkInstantWin(tickets, instantPrizes);
       const isInstantWin = instantWinners.length > 0;
 
-      // 6. Salvează comanda în CMS
+      // 🔁 6. Salvează comanda în CMS
       const saveRes = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
