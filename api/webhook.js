@@ -1,13 +1,12 @@
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { config as loadEnv } from 'dotenv'; // ✅ redenumit ca să evităm conflictul
+import { config as loadEnv } from 'dotenv';
 import { generateTickets } from './generateTickets.js';
 import { generateOrderNumber } from './generateOrderNumber.js';
 import { checkInstantWin } from './instantWinChecker.js';
 
-loadEnv(); // ✅ inițializare corectă
+loadEnv();
 
-// 🔧 CONFIG pentru Vercel – DEZACTIVEAZĂ body-parser-ul implicit
 export const config = {
   api: {
     bodyParser: false,
@@ -15,42 +14,44 @@ export const config = {
 };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const wixBackendUrl = process.env.WIX_BACKEND_URL;
+const wixBackendUrl = process.env.WIX_BACKEND_URL; // ex: https://www.luckyfaraonul.com/_functions
 
-// 🔧 getUsedTickets cu logare dacă răspunsul nu e JSON valid
+// ✅ Obține biletele deja folosite (GET, pentru http-functions.js din Wix)
 async function getUsedTickets(productId) {
+  const url = `${wixBackendUrl}/getUsedTickets?productId=${productId}`;
+
   try {
-    const response = await fetch(`${wixBackendUrl}/getUsedTickets`, {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.usedTickets || [];
+  } catch (err) {
+    const text = await response.text?.();
+    console.error("❌ Invalid JSON from getUsedTickets. Raw response:", text);
+    throw new Error("Invalid JSON from getUsedTickets");
+  }
+}
+
+// ✅ Trimite datele comenzii în Wix (savePurchase.jsw)
+async function savePurchase(purchase) {
+  try {
+    const response = await fetch(`${wixBackendUrl}/savePurchase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId }),
+      body: JSON.stringify(purchase),
     });
 
-    const text = await response.text();
-
-    try {
-      const data = JSON.parse(text);
-      return data.usedTickets || [];
-    } catch (jsonErr) {
-      console.error('❌ Invalid JSON from getUsedTickets:', text);
-      throw new Error('Invalid JSON from getUsedTickets');
+    if (!response.ok) {
+      const text = await response.text?.();
+      console.error("❌ Failed to save purchase:", text);
+      throw new Error("SavePurchase failed");
     }
   } catch (err) {
-    console.error('❌ Fetch failed for getUsedTickets:', err);
+    console.error("❌ Error during savePurchase:", err);
     throw err;
   }
 }
 
-// 🔧 savePurchase fără modificări
-async function savePurchase(purchase) {
-  await fetch(`${wixBackendUrl}/savePurchase`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(purchase),
-  });
-}
-
-// ✅ handler principal Stripe Webhook
+// ✅ Webhook Stripe – principal
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed');
@@ -63,13 +64,14 @@ export default async function handler(req, res) {
   try {
     event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
+    // ✅ Date din Stripe
     const qty = parseInt(session.metadata.qty, 10);
     const productId = session.metadata.productId;
     const productName = session.metadata.productName;
@@ -82,17 +84,20 @@ export default async function handler(req, res) {
     const postcode = session.customer_details.address?.postal_code || '';
     const country = session.customer_details.address?.country || '';
 
+    // ✅ Generează bilete
     const maxTickets = 80000;
     const usedTickets = await getUsedTickets(productId);
     const generatedTickets = generateTickets(qty, maxTickets, usedTickets);
     const orderNumber = generateOrderNumber();
 
+    // ✅ Verificare instant win
     const instantPrizes = [
       { number: 1234, prize: 'Win £1000' },
       { number: 8888, prize: 'Win £500' }
     ];
     const instantWinners = checkInstantWin(generatedTickets, instantPrizes);
 
+    // ✅ Salvează comanda
     await savePurchase({
       qty,
       productId,
@@ -108,6 +113,8 @@ export default async function handler(req, res) {
       orderNumber,
       instantWinners
     });
+
+    console.log("✅ Purchase saved successfully:", orderNumber);
   }
 
   res.status(200).send('Received');
