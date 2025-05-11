@@ -19,47 +19,48 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
-
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature'];
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   let event;
+
   try {
+    const buf = await buffer(req);
+    const sig = req.headers['stripe-signature'];
     event = stripe.webhooks.constructEvent(buf, sig, endpointSecret);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error('❌ Webhook signature verification failed:', err.message);
+    return res.status(400).json({ error: `Webhook Error: ${err.message}` });
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
     try {
+      const fetch = (await import('node-fetch')).default;
+
       const metadata = session.metadata;
       const qty = parseInt(metadata.qty);
       const productId = metadata.productId;
       const productName = metadata.productName;
 
-      // 👉 Dynamic import pentru node-fetch
-      const fetch = (await import('node-fetch')).default;
-
       // 1. Obține produsul din CMS
-      const productRes = await fetch(`https://www.wixapis.com/v1/collections/giveaways/items/query`, {
+      const productRes = await fetch('https://www.wixapis.com/v1/collections/giveaways/items/query', {
         method: 'POST',
         headers: {
           Authorization: process.env.WIX_API_KEY,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          filter: {
-            _id: productId
-          }
+          filter: { _id: productId }
         })
       });
 
       const productData = await productRes.json();
-      const product = productData.items[0];
+      const product = productData.items?.[0];
+      if (!product) throw new Error('Produsul nu a fost găsit în CMS.');
+
       const maxTickets = product.totalTickets;
 
       // 2. Obține biletele deja folosite
@@ -77,12 +78,12 @@ export default async function handler(req, res) {
       // 4. Generează order number
       const orderNumber = generateOrderNumber();
 
-      // 5. Verifică dacă sunt câștiguri instant
+      // 5. Verifică câștig instant
       const instantPrizes = product.instantWinPrizes || [];
       const instantWinners = checkInstantWin(tickets, instantPrizes);
       const isInstantWin = instantWinners.length > 0;
 
-      // 6. Salvează comanda în CMS (via .jsw)
+      // 6. Salvează în CMS
       await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,11 +107,11 @@ export default async function handler(req, res) {
       });
 
       return res.status(200).json({ success: true });
-    } catch (err) {
-      console.error('Error handling payment:', err);
+    } catch (error) {
+      console.error('❌ Error handling payment:', error);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
 
-  res.status(200).json({ received: true });
+  return res.status(200).json({ received: true });
 }
