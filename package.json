@@ -2,6 +2,7 @@
   "name": "luckyfaraonul-webhook",
   "version": "1.0.0",
   "description": "Webhook backend for LuckyFaraonul",
+  "type": "module",
   "main": "api/webhook.js",
   "scripts": {
     "start": "node api/webhook.js"
