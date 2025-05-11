@@ -1,6 +1,7 @@
 // api/webhook.js
 
 import Stripe from 'stripe';
+import { buffer } from 'micro';
 import { config } from 'dotenv';
 import { generateTickets } from './generateTickets.js';
 import { generateOrderNumber } from './generateOrderNumber.js';
@@ -8,14 +9,20 @@ import { checkInstantWin } from './instantWinChecker.js';
 
 config();
 
+export const configVercel = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const wixBackendUrl = process.env.WIX_BACKEND_URL;
 
 async function getUsedTickets(productId) {
-  const response = await fetch(${wixBackendUrl}/getUsedTickets, {
+  const response = await fetch(`${wixBackendUrl}/getUsedTickets`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ productId })
+    body: JSON.stringify({ productId }),
   });
 
   const data = await response.json();
@@ -23,22 +30,27 @@ async function getUsedTickets(productId) {
 }
 
 async function savePurchase(purchase) {
-  await fetch(${wixBackendUrl}/savePurchase, {
+  await fetch(`${wixBackendUrl}/savePurchase`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(purchase)
+    body: JSON.stringify(purchase),
   });
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).end('Method Not Allowed');
+  }
+
+  const buf = await buffer(req);
   const sig = req.headers['stripe-signature'];
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(Webhook Error: ${err.message});
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -56,7 +68,7 @@ export default async function handler(req, res) {
     const postcode = session.customer_details.address?.postal_code || '';
     const country = session.customer_details.address?.country || '';
 
-    const maxTickets = 80000; // sau ce ai tu setat per produs
+    const maxTickets = 80000;
     const usedTickets = await getUsedTickets(productId);
     const generatedTickets = generateTickets(qty, maxTickets, usedTickets);
     const orderNumber = generateOrderNumber();
