@@ -12,7 +12,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const wixBackendUrl = process.env.WIX_BACKEND_URL;
 
 async function getUsedTickets(productId) {
-  const response = await fetch(`${wixBackendUrl}/getUsedTickets`, {
+  const response = await fetch(${wixBackendUrl}/getUsedTickets, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId })
@@ -23,7 +23,7 @@ async function getUsedTickets(productId) {
 }
 
 async function savePurchase(purchase) {
-  await fetch(`${wixBackendUrl}/savePurchase`, {
+  await fetch(${wixBackendUrl}/savePurchase, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(purchase)
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).send(Webhook Error: ${err.message});
   }
 
   if (event.type === 'checkout.session.completed') {
