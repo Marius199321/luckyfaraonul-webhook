@@ -2,8 +2,6 @@
 
 import Stripe from 'stripe';
 import { config } from 'dotenv';
-import { getUsedTickets } from './getUsedTickets.jsw';
-import { savePurchase } from './savePurchase.jsw';
 import { generateTickets } from './generateTickets.js';
 import { generateOrderNumber } from './generateOrderNumber.js';
 import { checkInstantWin } from './instantWinChecker.js';
@@ -11,6 +9,26 @@ import { checkInstantWin } from './instantWinChecker.js';
 config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const wixBackendUrl = process.env.WIX_BACKEND_URL;
+
+async function getUsedTickets(productId) {
+  const response = await fetch(`${wixBackendUrl}/getUsedTickets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId })
+  });
+
+  const data = await response.json();
+  return data.usedTickets || [];
+}
+
+async function savePurchase(purchase) {
+  await fetch(`${wixBackendUrl}/savePurchase`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(purchase)
+  });
+}
 
 export default async function handler(req, res) {
   const sig = req.headers['stripe-signature'];
@@ -43,7 +61,6 @@ export default async function handler(req, res) {
     const generatedTickets = generateTickets(qty, maxTickets, usedTickets);
     const orderNumber = generateOrderNumber();
 
-    // Definește câștigurile instant pentru produsul ăsta (exemplu):
     const instantPrizes = [
       { number: 1234, prize: 'Win £1000' },
       { number: 8888, prize: 'Win £500' }
@@ -69,4 +86,3 @@ export default async function handler(req, res) {
 
   res.status(200).send('Received');
 }
-
