@@ -14,9 +14,9 @@ export const config = {
 };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const wixBackendUrl = process.env.WIX_BACKEND_URL; // ex: https://www.luckyfaraonul.com/_functions
+const wixBackendUrl = process.env.WIX_BACKEND_URL;
 
-// ✅ Obține biletele deja folosite (GET, pentru http-functions.js din Wix)
+// ✅ Obține biletele deja folosite
 async function getUsedTickets(productId) {
   const url = `${wixBackendUrl}/getUsedTickets?productId=${productId}`;
 
@@ -25,13 +25,12 @@ async function getUsedTickets(productId) {
     const data = await response.json();
     return data.usedTickets || [];
   } catch (err) {
-    const text = await response.text?.();
-    console.error("❌ Invalid JSON from getUsedTickets. Raw response:", text);
+    console.error("❌ Error fetching or parsing getUsedTickets:", err);
     throw new Error("Invalid JSON from getUsedTickets");
   }
 }
 
-// ✅ Trimite datele comenzii în Wix (savePurchase.jsw)
+// ✅ Trimite comanda către Wix CMS
 async function savePurchase(purchase) {
   try {
     const response = await fetch(`${wixBackendUrl}/savePurchase`, {
@@ -51,7 +50,7 @@ async function savePurchase(purchase) {
   }
 }
 
-// ✅ Webhook Stripe – principal
+// ✅ Webhook Stripe principal
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed');
@@ -71,7 +70,6 @@ export default async function handler(req, res) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // ✅ Date din Stripe
     const qty = parseInt(session.metadata.qty, 10);
     const productId = session.metadata.productId;
     const productName = session.metadata.productName;
@@ -84,20 +82,17 @@ export default async function handler(req, res) {
     const postcode = session.customer_details.address?.postal_code || '';
     const country = session.customer_details.address?.country || '';
 
-    // ✅ Generează bilete
     const maxTickets = 80000;
     const usedTickets = await getUsedTickets(productId);
     const generatedTickets = generateTickets(qty, maxTickets, usedTickets);
     const orderNumber = generateOrderNumber();
 
-    // ✅ Verificare instant win
     const instantPrizes = [
       { number: 1234, prize: 'Win £1000' },
       { number: 8888, prize: 'Win £500' }
     ];
     const instantWinners = checkInstantWin(generatedTickets, instantPrizes);
 
-    // ✅ Salvează comanda
     await savePurchase({
       qty,
       productId,
