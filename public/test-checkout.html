@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <title>Test Stripe</title>
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <button id="payBtn">Plătește test</button>
 
   <script>
+    const stripe = Stripe('pk_test_51RL3kxQsmtbok5qVPbDJemofLqI18wV2mrHZYrVxSquWA7uf0w7L01pgYjXicUVPnZjEQSLnnbK8yCfPVaFKHI0Q00ROuT5ZH0');
+
     document.getElementById('payBtn').addEventListener('click', async () => {
       try {
         const response = await fetch('https://luckyfaraonul-webhook.vercel.app/api/createCheckoutSession', {
@@ -18,14 +21,15 @@
           body: JSON.stringify({
             qty: 1,
             productId: 'prod_SI9EFhKDzg6MVj',
-            productName: 'Test Product'
+            productName: 'Test Product',
+            stripePriceId: 'price_1RNYvuQsmtbok5qVb8zgUqFa' // ✅ folosit cel nou
           })
         });
 
         const data = await response.json();
 
         if (data.id) {
-          window.location.href = `https://checkout.stripe.com/pay/${data.id}`;
+          await stripe.redirectToCheckout({ sessionId: data.id });
         } else {
           alert('Eroare: ' + JSON.stringify(data));
         }
