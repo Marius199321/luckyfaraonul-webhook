@@ -14,7 +14,6 @@ export default async function handler(req, res) {
     }
 
     // restul codului tău...
-
     const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
 
     try {
