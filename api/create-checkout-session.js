@@ -16,7 +16,8 @@ export default async function handler(req, res) {
   const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
 
   try {
-    const result = await fetch('https://luckyfaraonul-webhook.vercel.app/api/getPriceId', {
+    // ✅ Apelăm funcția getPriceId din Wix
+    const result = await fetch('https://www.luckyfaraonul.com/_functions/getPriceId', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId })
@@ -25,11 +26,13 @@ export default async function handler(req, res) {
     const data = await result.json();
 
     if (!data.stripePriceId) {
+      console.error('❌ stripePriceId not found from Wix:', data);
       return res.status(500).json({ error: 'stripePriceId not found' });
     }
 
     const stripePriceId = data.stripePriceId;
 
+    // ✅ Creăm sesiunea Stripe
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price: stripePriceId, quantity: Number(qty) }],
@@ -44,14 +47,14 @@ export default async function handler(req, res) {
         productName,
         qty
       },
-      success_url: 'https://luckyfaraonul.com/success',
-      cancel_url: 'https://luckyfaraonul.com/cancel'
+      success_url: 'https://www.luckyfaraonul.com/success',
+      cancel_url: 'https://www.luckyfaraonul.com/cancel'
     });
 
-    res.status(200).json({ url: session.url });
+    return res.status(200).json({ url: session.url });
 
   } catch (error) {
-    console.error('❌ Stripe error:', error.message);
-    res.status(500).json({ error: 'Could not create Stripe session' });
+    console.error('❌ Checkout session error:', error.message);
+    return res.status(500).json({ error: 'Could not create Stripe session' });
   }
 }
