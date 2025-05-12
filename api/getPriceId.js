@@ -1,7 +1,10 @@
 export default async function handler(req, res) {
-    // ✅ Fix CORS:
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end(); // ✅ răspunde la preflight CORS
+    }
 
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method not allowed' });
