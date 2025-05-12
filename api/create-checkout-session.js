@@ -54,7 +54,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url });
 
   } catch (error) {
-    console.error('❌ Checkout session error:', error.message);
-    return res.status(500).json({ error: 'Could not create Stripe session' });
+    console.error('❌ Stripe error:', error);
+res.status(500).json({ error: error.message || 'Could not create Stripe session' });
+
   }
 }
