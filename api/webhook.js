@@ -1,120 +1,50 @@
 import Stripe from 'stripe';
-import { buffer } from 'micro';
-import { config as loadEnv } from 'dotenv';
-import { generateTickets } from './generateTickets.js';
-import { generateOrderNumber } from './generateOrderNumber.js';
-import { checkInstantWin } from './instantWinChecker.js';
-
-loadEnv();
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+import { generateOrderNumber } from '../utils/generateOrderNumber';
+import { generateTickets } from '../utils/generateTickets';
+import { sendZohoEmail } from '../utils/emailSender'; // ✅ redenumit corect
+import { instantWinChecker } from '../utils/instantWinChecker';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const wixBackendUrl = process.env.WIX_BACKEND_URL;
 
-// ✅ Funcție sigură pentru preluarea biletelor deja folosite
-async function getUsedTickets(productId) {
-  const url = `${wixBackendUrl}/getUsedTickets?productId=${productId}`;
+export default async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.usedTickets || [];
-  } catch (err) {
-    console.error("❌ Error fetching or parsing getUsedTickets:", err);
-    throw new Error("Invalid JSON from getUsedTickets");
-  }
-}
-
-// ✅ Trimite comanda completă către Wix (savePurchase.jsw)
-async function savePurchase(purchase) {
-  try {
-    const response = await fetch(`${wixBackendUrl}/savePurchase`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(purchase),
-    });
-
-    if (!response.ok) {
-      const text = await response.text?.();
-      console.error("❌ Failed to save purchase:", text);
-      throw new Error("SavePurchase failed");
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
-  } catch (err) {
-    console.error("❌ Error during savePurchase:", err);
-    throw err;
-  }
-}
 
-// ✅ Webhook handler pentru Stripe
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).end('Method Not Allowed');
-  }
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
 
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature'];
+        const {
+            fullName, phone, address, country,
+            productId, productName, qty
+        } = session.metadata;
 
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error('❌ Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+        const orderNumber = generateOrderNumber();
+        const tickets = await generateTickets(productId, Number(qty), 50000); // total bilete per produs
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+        const instantWins = instantWinChecker(productId, tickets); // Verifică instant win
 
-    // ✅ Preluare date din sesiunea Stripe
-    const qty = parseInt(session.metadata.qty, 10);
-    const productId = session.metadata.productId;
-    const productName = session.metadata.productName;
-    const amount = session.amount_total / 100;
+        await sendZohoEmail({
+            email: session.customer_email,
+            fullName,
+            phone,
+            address,
+            country,
+            productName,
+            orderNumber,
+            tickets,
+            instantWins,
+            amount: session.amount_total / 100,
+            purchaseDate: new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })
+        });
 
-    const email = session.customer_details.email;
-    const name = session.customer_details.name;
-    const phone = session.customer_details.phone || '';
-    const address = session.customer_details.address?.line1 || '';
-    const postcode = session.customer_details.address?.postal_code || '';
-    const country = session.customer_details.address?.country || '';
+        // Aici poți salva în Wix CMS dacă vrei.
+    }
 
-    // ✅ Generare bilete unice
-    const maxTickets = 80000;
-    const usedTickets = await getUsedTickets(productId);
-    const generatedTickets = generateTickets(qty, maxTickets, usedTickets);
-    const orderNumber = generateOrderNumber();
-
-    // ✅ Verificare câștig Instant Win
-    const instantPrizes = [
-      { number: 1234, prize: 'Win £1000' },
-      { number: 8888, prize: 'Win £500' }
-    ];
-    const instantWinners = checkInstantWin(generatedTickets, instantPrizes);
-
-    // ✅ Salvare achiziție în Wix
-    await savePurchase({
-      qty,
-      productId,
-      productName,
-      amount,
-      email,
-      name,
-      phone,
-      address,
-      postcode,
-      country,
-      generatedTickets,
-      orderNumber,
-      instantWinners
-    });
-
-    console.log("✅ Purchase saved successfully:", orderNumber);
-  }
-
-  res.status(200).send('Received');
-}
+    res.status(200).json({ received: true });
+};
