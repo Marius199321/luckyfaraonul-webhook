@@ -1,7 +1,8 @@
-import { sendZohoEmail } from '../utils/emailSender';
-import { generateOrderNumber } from '../utils/generateOrderNumber';
-import { generateTickets } from '../utils/generateTickets';
-import { instantWinChecker } from '../utils/instantWinChecker';
+import { sendZohoEmail } from '../utils/emailSender.js';
+import { generateOrderNumber } from '../utils/generateOrderNumber.js';
+import { generateTickets } from '../utils/generateTickets.js';
+import { instantWinChecker } from '../utils/instantWinChecker.js';
+
 
 export default async (req, res) => {
     const orderNumber = generateOrderNumber();
