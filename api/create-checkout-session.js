@@ -16,14 +16,23 @@ export default async function handler(req, res) {
   const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
 
   try {
-    // ✅ Apelăm funcția getPriceId din Wix
+    // 🔍 Apelăm funcția getPriceId din Wix
     const result = await fetch('https://www.luckyfaraonul.com/_functions/getPriceId', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId })
     });
 
-    const data = await result.json();
+    const rawText = await result.text();
+    console.log('🔍 Răspuns brut de la getPriceId:', rawText);
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error('❌ Eroare la parsarea JSON:', parseErr);
+      return res.status(500).json({ error: 'Invalid JSON response from getPriceId' });
+    }
 
     if (!data.stripePriceId) {
       console.error('❌ stripePriceId not found from Wix:', data);
@@ -55,7 +64,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('❌ Stripe error:', error);
-res.status(500).json({ error: error.message || 'Could not create Stripe session' });
-
+    res.status(500).json({ error: error.message || 'Could not create Stripe session' });
   }
 }
