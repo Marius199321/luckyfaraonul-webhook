@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
 
   try {
-    const response = await fetch('https://www.luckyfaraonul.com/_functions/getPriceId', {
+    const response = await fetch('https://luckyfaraonul-webhook.vercel.app/api/getPriceId', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId })
@@ -71,3 +71,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: error.message || 'Could not create Stripe session' });
   }
 }
+
