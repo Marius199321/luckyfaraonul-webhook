@@ -16,15 +16,22 @@ export default async function handler(req, res) {
   const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
 
   try {
-    // 🔍 Apelăm funcția getPriceId din Wix
-    const result = await fetch('https://www.luckyfaraonul.com/_functions/getPriceId', {
+    const response = await fetch('https://www.luckyfaraonul.com/_functions/getPriceId', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId })
     });
 
-    const rawText = await result.text();
+    const rawText = await response.text();
     console.log('🔍 Răspuns brut de la getPriceId:', rawText);
+
+    if (!rawText) {
+      return res.status(500).json({ error: 'Răspuns gol de la getPriceId' });
+    }
+
+    if (!response.ok) {
+      return res.status(500).json({ error: 'getPriceId a răspuns cu status ' + response.status });
+    }
 
     let data;
     try {
@@ -35,16 +42,13 @@ export default async function handler(req, res) {
     }
 
     if (!data.stripePriceId) {
-      console.error('❌ stripePriceId not found from Wix:', data);
+      console.error('❌ stripePriceId not found în date:', data);
       return res.status(500).json({ error: 'stripePriceId not found' });
     }
 
-    const stripePriceId = data.stripePriceId;
-
-    // ✅ Creăm sesiunea Stripe
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price: stripePriceId, quantity: Number(qty) }],
+      line_items: [{ price: data.stripePriceId, quantity: Number(qty) }],
       mode: 'payment',
       customer_email: email,
       metadata: {
@@ -63,7 +67,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url });
 
   } catch (error) {
-    console.error('❌ Stripe error:', error);
+    console.error('❌ Stripe error final:', error);
     res.status(500).json({ error: error.message || 'Could not create Stripe session' });
   }
 }
