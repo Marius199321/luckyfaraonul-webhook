@@ -5,50 +5,42 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
   const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
 
   try {
-    const response = await fetch('https://luckyfaraonul-webhook.vercel.app/api/getPriceId', {
+    // 🔄 Trimitem către funcția backend getPriceId
+    const priceRes = await fetch('https://luckyfaraonul-webhook.vercel.app/api/getPriceId', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId })
     });
 
-    const rawText = await response.text();
-    console.log('🔍 Răspuns brut de la getPriceId:', rawText);
-
-    if (!rawText) {
-      return res.status(500).json({ error: 'Răspuns gol de la getPriceId' });
+    if (!priceRes.ok) {
+      const errText = await priceRes.text();
+      console.error('❌ Eroare HTTP din getPriceId:', priceRes.status, errText);
+      return res.status(500).json({ error: 'Eroare din getPriceId' });
     }
 
-    if (!response.ok) {
-      return res.status(500).json({ error: 'getPriceId a răspuns cu status ' + response.status });
-    }
-
-    let data;
+    let priceData;
     try {
-      data = JSON.parse(rawText);
-    } catch (parseErr) {
-      console.error('❌ Eroare la parsarea JSON:', parseErr);
-      return res.status(500).json({ error: 'Invalid JSON response from getPriceId' });
+      priceData = await priceRes.json();
+    } catch (err) {
+      console.error('❌ Răspuns invalid JSON din getPriceId:', err);
+      return res.status(500).json({ error: 'Răspuns invalid JSON din getPriceId' });
     }
 
-    if (!data.stripePriceId) {
-      console.error('❌ stripePriceId not found în date:', data);
+    if (!priceData.stripePriceId) {
+      console.error('❌ stripePriceId lipsă:', priceData);
       return res.status(500).json({ error: 'stripePriceId not found' });
     }
 
+    // ✅ Creăm sesiunea de plată Stripe
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price: data.stripePriceId, quantity: Number(qty) }],
+      line_items: [{ price: priceData.stripePriceId, quantity: Number(qty) }],
       mode: 'payment',
       customer_email: email,
       metadata: {
@@ -66,9 +58,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ url: session.url });
 
-  } catch (error) {
-    console.error('❌ Stripe error final:', error);
-    res.status(500).json({ error: error.message || 'Could not create Stripe session' });
+  } catch (err) {
+    console.error('❌ Eroare finală:', err);
+    return res.status(500).json({ error: err.message || 'Eroare internă server' });
   }
 }
 
