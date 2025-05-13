@@ -1,7 +1,8 @@
 export const instantWinChecker = (productId, tickets) => {
-    const instantWinNumbers = [1234, 5678, 91011]; // Setează tu dinamic numere instant win
+  // Exemplu fix: stabilește tu mai târziu dinamic
+  const instantWinNumbers = [1234, 5678, 9011];
 
-    const winningTickets = tickets.filter(ticket => instantWinNumbers.includes(ticket));
+  const winningTickets = tickets.filter(ticket => instantWinNumbers.includes(ticket));
 
-    return winningTickets; // returnează biletele câștigătoare instant
+  return winningTickets;
 };
