@@ -24,35 +24,45 @@ export default async function handler(req, res) {
     const tickets = await generateTickets(productId, Number(qty), 50000);
     const instantWins = instantWinChecker(productId, tickets);
 
-    // ⬇️ salvăm în CMS Wix
-    await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fullName,
-        phone,
-        email,
-        address,
-        country,
-        productId,
-        productName,
-        qty: Number(qty),
-        generatedTickets: tickets,
-        instantWinners: instantWins,
-        orderNumber,
-        amountPaid: session.amount_total / 100,
-        currency: session.currency
-      })
-    });
+    // ✅ Try/catch pentru salvare în CMS Wix
+    try {
+      await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName,
+          phone,
+          email,
+          address,
+          country,
+          productId,
+          productName,
+          qty: Number(qty),
+          generatedTickets: tickets,
+          instantWinners: instantWins,
+          orderNumber,
+          amountPaid: session.amount_total / 100,
+          currency: session.currency
+        })
+      });
+    } catch (err) {
+      console.error("❌ Eroare la salvarea în CMS Wix:", err);
+      // poți loga sau alerta, dar nu oprești execuția
+    }
 
-    // ⬇️ Trimitem email
-    await sendZohoEmail({
-      email, fullName, phone, address, country,
-      productName, orderNumber, tickets, instantWins,
-      amount: session.amount_total / 100,
-      purchaseDate: new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })
-    });
+    // ✅ Try/catch pentru trimiterea emailului
+    try {
+      await sendZohoEmail({
+        email, fullName, phone, address, country,
+        productName, orderNumber, tickets, instantWins,
+        amount: session.amount_total / 100,
+        purchaseDate: new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })
+      });
+    } catch (err) {
+      console.error("❌ Eroare la trimiterea emailului:", err);
+    }
   }
 
   res.status(200).json({ received: true });
 }
+
