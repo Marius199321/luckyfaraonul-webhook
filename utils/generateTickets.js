@@ -1,17 +1,17 @@
-export const generateTickets = async (productId, qty, maxTickets) => {
-  const usedTickets = new Set();
+// utils/generateTickets.js
+import { getUsedTicketNumbers } from './getUsedTicketNumbers.js'; // ✅ Import adăugat
 
-  // Optional: Fetch from Wix if vrei să eviți dubluri reale
+export async function generateTickets(productId, qty, totalTickets) {
+  const usedNumbers = await getUsedTicketNumbers(productId); // ✅ primește deja biletele folosite
+  const generated = new Set();
 
-  const tickets = new Set();
-
-  while (tickets.size < qty) {
-    const ticket = Math.floor(Math.random() * maxTickets) + 1;
-    if (!usedTickets.has(ticket)) {
-      usedTickets.add(ticket);
-      tickets.add(ticket);
+  while (generated.size < qty) {
+    const num = Math.floor(Math.random() * totalTickets) + 1;
+    if (!usedNumbers.includes(num) && !generated.has(num)) {
+      generated.add(num);
     }
   }
 
-  return Array.from(tickets);
-};
+  return Array.from(generated);
+}
+

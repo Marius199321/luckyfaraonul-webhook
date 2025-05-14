@@ -1,3 +1,5 @@
+// utils/generateOrderNumber.js
+
 function generateRandomSuffix(length = 6) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
@@ -9,7 +11,7 @@ function generateRandomSuffix(length = 6) {
 
 export function generateOrderNumber() {
   const now = new Date();
-  const datePart = now.toISOString().slice(0, 10).replace(/-/g, ''); // ex: 20250513
+  const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
   const suffix = generateRandomSuffix();
   return `ORD-${datePart}-${suffix}`;
 }
