@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 export const sendZohoEmail = async ({
   email, fullName, phone, address, country,
-  productName, orderNumber, tickets, instantWins,
+  productName, orderNumber, tickets = [], instantWins = [],
   amount, purchaseDate
 }) => {
   const transporter = nodemailer.createTransport({
@@ -15,7 +15,7 @@ export const sendZohoEmail = async ({
     }
   });
 
-  const instantWinText = instantWins.length
+  const instantWinText = Array.isArray(instantWins) && instantWins.length
     ? `<p><strong style="color:green">🎉 Instant Win Tickets:</strong> ${instantWins.join(', ')}</p>`
     : `<p><strong style="color:gray">😞 No instant win this time.</strong></p>`;
 
@@ -24,7 +24,7 @@ export const sendZohoEmail = async ({
       <h2>✅ Thank you for your order, ${fullName}!</h2>
       <p><strong>Product:</strong> ${productName}</p>
       <p><strong>Order Number:</strong> ${orderNumber}</p>
-      <p><strong>Tickets:</strong> ${tickets.join(', ')}</p>
+      <p><strong>Tickets:</strong> ${Array.isArray(tickets) ? tickets.join(', ') : '—'}</p>
       ${instantWinText}
       <p><strong>Amount Paid:</strong> £${amount.toFixed(2)}</p>
       <p><strong>Purchase Date:</strong> ${purchaseDate}</p>
