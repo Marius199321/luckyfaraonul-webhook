@@ -1,16 +1,24 @@
 import Stripe from 'stripe';
 import fetch from 'node-fetch';
+import { buffer } from 'micro';
 import { generateOrderNumber } from '../utils/generateOrderNumber.js';
 import { sendZohoEmail } from '../utils/emailSender.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export const config = {
+  api: {
+    bodyParser: false
+  }
+};
 
 export default async function handler(req, res) {
   const sig = req.headers['stripe-signature'];
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const buf = await buffer(req);
+    event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("❌ Stripe Webhook Invalid:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -90,6 +98,5 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
-
 
 
