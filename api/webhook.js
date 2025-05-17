@@ -1,8 +1,6 @@
 import Stripe from 'stripe';
 import fetch from 'node-fetch';
 import { generateOrderNumber } from '../utils/generateOrderNumber.js';
-import { generateTickets } from '../utils/generateTickets.js';
-import { instantWinChecker } from '../utils/instantWinChecker.js';
 import { sendZohoEmail } from '../utils/emailSender.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -20,26 +18,36 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const { fullName, phone, email, address, country, productId, productName, qty } = session.metadata;
+    const {
+      fullName,
+      phone,
+      email,
+      address,
+      country,
+      productId,
+      productName,
+      qty
+    } = session.metadata;
 
     console.log("🎯 Webhook: sesiune completă Stripe pentru", email);
 
     const orderNumber = generateOrderNumber();
-    const tickets = await generateTickets(productId, Number(qty), 50000);
-    const instantWins = instantWinChecker(productId, tickets);
-
     const now = new Date();
-    const timeFormatted = now.toLocaleTimeString('en-GB', {
+    const formattedTime = now.toLocaleTimeString('en-GB', {
       hour: '2-digit',
       minute: '2-digit'
     });
 
+    // 🔁 Apelez backend-ul Wix pentru a genera biletele și salva comanda
     try {
-      const cmsRes = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
+      const response = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': process.env.WIX_FUNCTION_SECRET
+        },
         body: JSON.stringify({
-          fullname,
+          fullName,
           phone,
           email,
           address,
@@ -47,27 +55,30 @@ export default async function handler(req, res) {
           productId,
           productName,
           qty: Number(qty),
-          generatedTickets: tickets,
-          instantWinners: instantWins,
           orderNumber,
           amount: session.amount_total / 100,
           currency: session.currency,
           createdDate: now,
-          createdTime: timeFormatted
+          createdTime: formattedTime
         })
       });
 
-      const cmsData = await cmsRes.text();
-      console.log("✅ Salvat în CMS:", cmsData);
-
+      const cmsResult = await response.text();
+      console.log("✅ Salvat în CMS:", cmsResult);
     } catch (err) {
-      console.error("❌ Eroare la salvarea în CMS Wix:", err.message);
+      console.error("❌ Eroare la salvarea în Wix CMS:", err.message);
     }
 
+    // ✉️ Trimite email cu bilet(e)
     try {
       await sendZohoEmail({
-        email, fullName, phone, address, country,
-        productName, orderNumber, tickets, instantWins,
+        email,
+        fullName,
+        phone,
+        address,
+        country,
+        productName,
+        orderNumber,
         amount: session.amount_total / 100,
         purchaseDate: now.toLocaleString('en-GB', { timeZone: 'Europe/London' })
       });
@@ -79,5 +90,6 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
