@@ -15,61 +15,62 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { fullName, phone, email, address, country, productId, productName, qty } = req.body;
+  const {
+    fullName,
+    phone,
+    email,
+    address,
+    country,
+    productId,
+    productName,
+    qty,
+    stripePriceId
+  } = req.body;
 
   console.log("📦 Body primit în create-checkout-session:", req.body);
 
-  if (!productId || !qty || !email) {
-    return res.status(400).json({ error: "Missing required fields: productId, qty, or email" });
+  // Validare date
+  if (!stripePriceId || !qty || !email) {
+    return res.status(400).json({
+      error: "Missing required fields: stripePriceId, qty, or email"
+    });
   }
 
   try {
-    const domain = process.env.VERCEL_URL
-      ? (process.env.VERCEL_URL.startsWith('http') ? process.env.VERCEL_URL : `https://${process.env.VERCEL_URL}`)
-      : 'https://www.luckyfaraonul.com';
-
-    const getPriceUrl = `${domain}/api/getPriceId`;
-    console.log("🔍 Cer stripePriceId pentru:", productId, "de la:", getPriceUrl);
-
-    const priceRes = await fetch(getPriceUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId })
-    });
-
-    if (!priceRes.ok) {
-      const errData = await priceRes.text();
-      console.error("❌ Eroare la fetch stripePriceId:", errData);
-      return res.status(500).json({ error: "Failed to get stripePriceId from Wix backend" });
-    }
-
-    const { stripePriceId } = await priceRes.json();
-
-    if (!stripePriceId) {
-      console.error("❌ stripePriceId not found in response");
-      return res.status(404).json({ error: "stripePriceId not found" });
-    }
-
-    console.log("✅ stripePriceId primit:", stripePriceId);
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price: stripePriceId, quantity: Number(qty) }],
+      line_items: [
+        {
+          price: stripePriceId,
+          quantity: Number(qty)
+        }
+      ],
       mode: 'payment',
       metadata: {
-        fullName, phone, email, address, country, productId, productName, qty
+        fullName,
+        phone,
+        email,
+        address,
+        country,
+        productId,
+        productName,
+        qty
       },
       success_url: 'https://www.luckyfaraonul.com/success',
       cancel_url: 'https://www.luckyfaraonul.com/cancel'
     });
 
     console.log("🎉 Stripe session creată:", session.id);
-    return res.status(200).json({ id: session.id, url: session.url });
+    return res.status(200).json({ id: session.id, sessionUrl: session.url });
 
   } catch (err) {
     console.error("❌ Eroare sesiune Stripe:", err);
-    return res.status(500).json({ error: "Internal server error", details: err.message });
+    return res.status(500).json({
+      error: "Internal server error",
+      details: err.message
+    });
   }
 }
+
 
 
