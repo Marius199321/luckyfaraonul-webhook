@@ -14,8 +14,8 @@ export const config = {
 
 export default async function handler(req, res) {
   const sig = req.headers['stripe-signature'];
-
   let event;
+
   try {
     const buf = await buffer(req);
     event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
@@ -73,13 +73,27 @@ export default async function handler(req, res) {
         })
       });
 
-      const result = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Wix CMS error (status ${response.status}): ${errorText}`);
+      }
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (err) {
+        const fallback = await response.text();
+        console.warn("⚠️ Răspuns fallback (nu e JSON):", fallback);
+        result = {};
+      }
+
       console.log("✅ Salvat în CMS:", result);
 
       if (result.result) {
         tickets = result.result.tickets || [];
         instantWins = result.result.instantWinners || [];
       }
+
     } catch (err) {
       console.error("❌ Eroare la salvarea în Wix CMS:", err.message);
     }
@@ -106,6 +120,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
 
