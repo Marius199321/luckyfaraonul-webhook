@@ -46,7 +46,9 @@ export default async function handler(req, res) {
       minute: '2-digit'
     });
 
-    // 🔁 Apelez backend-ul Wix pentru a genera biletele și salva comanda
+    let tickets = [];
+    let instantWins = [];
+
     try {
       const response = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
         method: 'POST',
@@ -71,13 +73,17 @@ export default async function handler(req, res) {
         })
       });
 
-      const cmsResult = await response.text();
-      console.log("✅ Salvat în CMS:", cmsResult);
+      const result = await response.json();
+      console.log("✅ Salvat în CMS:", result);
+
+      if (result.result) {
+        tickets = result.result.tickets || [];
+        instantWins = result.result.instantWinners || [];
+      }
     } catch (err) {
       console.error("❌ Eroare la salvarea în Wix CMS:", err.message);
     }
 
-    // ✉️ Trimite email cu bilet(e)
     try {
       await sendZohoEmail({
         email,
@@ -88,7 +94,9 @@ export default async function handler(req, res) {
         productName,
         orderNumber,
         amount: session.amount_total / 100,
-        purchaseDate: now.toLocaleString('en-GB', { timeZone: 'Europe/London' })
+        purchaseDate: now.toLocaleString('en-GB', { timeZone: 'Europe/London' }),
+        tickets,
+        instantWins
       });
       console.log("✅ Email trimis către:", email);
     } catch (err) {
@@ -98,5 +106,6 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
