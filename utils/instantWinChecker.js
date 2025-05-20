@@ -2,30 +2,37 @@ import fetch from 'node-fetch';
 
 export async function instantWinChecker(productId, tickets) {
   try {
-    const response = await fetch(`${process.env.WIX_BACKEND_URL}/getInstantWinList?productId=${productId}`, {
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+      console.warn("⚠️ Lista de bilete este goală sau invalidă.");
+      return [];
+    }
+
+    const res = await fetch(`${process.env.WIX_BACKEND_URL}/getInstantWinList?productId=${productId}`, {
       method: 'GET',
       headers: {
         'Authorization': process.env.WIX_FUNCTION_SECRET
       }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Wix fetch error (status ${response.status}): ${errorText}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Wix fetch error ${res.status}: ${errText}`);
     }
 
-    const { instantWinList = [] } = await response.json();
+    const data = await res.json();
+    const list = Array.isArray(data.instantWinList) ? data.instantWinList : [];
 
-    if (!Array.isArray(instantWinList)) {
-      console.warn("⚠️ instantWinList nu este array valid");
+    if (list.length === 0) {
+      console.log(`ℹ️ instantWinList gol pentru produs ${productId}`);
       return [];
     }
 
-    const winningTickets = tickets.filter(ticket => instantWinList.includes(ticket));
-    return winningTickets;
+    const winSet = new Set(list);
+    const winners = tickets.filter(t => winSet.has(t));
+    return winners;
 
   } catch (err) {
-    console.error("❌ Eroare la verificarea instant win:", err.message);
+    console.error(`❌ Eroare instantWinChecker pentru produs ${productId}:`, err.message);
     return [];
   }
 }
