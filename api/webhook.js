@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     });
 
     let tickets = [];
-    let instantWins = [];
+    let instantWiners = [];
 
     try {
       const response = await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
 
       if (result.result) {
         tickets = result.result.tickets || [];
-        instantWins = result.result.instantWinners || [];
+        instantWiners = result.result.instantWiners || [];
       }
 
     } catch (err) {
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
         amount: session.amount_total / 100,
         purchaseDate: now.toLocaleString('en-GB', { timeZone: 'Europe/London' }),
         tickets,
-        instantWins
+        instantWiners
       });
       console.log("✅ Email trimis către:", email);
     } catch (err) {
@@ -120,6 +120,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
 

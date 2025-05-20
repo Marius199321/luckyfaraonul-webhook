@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 export const sendZohoEmail = async ({
   email, name, phone, address, country,
-  productName, orderNumber, tickets = [], instantWins = [],
+  productName, orderNumber, tickets = [], instantWiners = [],
   amount, purchaseDate
 }) => {
   try {
@@ -24,8 +24,8 @@ export const sendZohoEmail = async ({
       }
     });
 
-    const instantWinText = Array.isArray(instantWins) && instantWins.length > 0
-      ? `<p><strong style="color:green">🎉 Instant Win Tickets:</strong> ${instantWins.join(', ')}</p>`
+    const instantWinText = Array.isArray(instantWiners) && instantWiners.length > 0
+      ? `<p><strong style="color:green">🎉 Instant Win Tickets:</strong> ${instantWiners.join(', ')}</p>`
       : `<p><strong style="color:gray">😞 No instant win this time.</strong></p>`;
 
     const htmlContent = `
