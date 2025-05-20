@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 export const sendZohoEmail = async ({
   email, name, phone, address, country,
-  productName, orderNumber, tickets = [], instantWiners = [],
+  productName, orderNumber, tickets = [], instantWinners = [],
   amount, purchaseDate
 }) => {
   try {
@@ -15,7 +15,7 @@ export const sendZohoEmail = async ({
     }
 
     const transporter = nodemailer.createTransport({
-      host: 'smtp.zoho.com',
+      host: 'smtp.zoho.eu',
       port: 465,
       secure: true,
       auth: {
@@ -24,8 +24,8 @@ export const sendZohoEmail = async ({
       }
     });
 
-    const instantWinText = Array.isArray(instantWiners) && instantWiners.length > 0
-      ? `<p><strong style="color:green">🎉 Instant Win Tickets:</strong> ${instantWiners.join(', ')}</p>`
+    const instantWinText = Array.isArray(instantWinners) && instantWinners.length > 0
+      ? `<p><strong style="color:green">🎉 Instant Win Tickets:</strong> ${instantWinners.join(', ')}</p>`
       : `<p><strong style="color:gray">😞 No instant win this time.</strong></p>`;
 
     const htmlContent = `
@@ -50,7 +50,8 @@ export const sendZohoEmail = async ({
       from: `"LuckyFaraonul" <${zohoEmail}>`,
       to: email,
       subject: `🎫 Your LuckyFaraonul Tickets | Order ${orderNumber || ''}`,
-      html: htmlContent
+      html: htmlContent,
+      text: `Thank you for your order, ${name || 'Customer'}.\nProduct: ${productName}\nOrder No: ${orderNumber}\nTickets: ${tickets.join(', ')}\nAmount Paid: £${amount}\n...`
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -62,5 +63,6 @@ export const sendZohoEmail = async ({
     throw err;
   }
 };
+
 
 

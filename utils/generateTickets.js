@@ -2,12 +2,11 @@ import fetch from 'node-fetch';
 
 export async function generateTickets(productId, qty, maxTickets) {
   try {
-    const usedTickets = [];
+    let usedTickets = [];
     let hasMore = true;
     let skip = 0;
     const pageSize = 1000;
 
-    // 🔁 Loop prin toate paginile (în caz că ai mai mult de 1000 bilete deja vândute)
     while (hasMore) {
       const response = await fetch(`${process.env.WIX_BACKEND_URL}/getUsedTickets?productId=${productId}&skip=${skip}&limit=${pageSize}`, {
         method: 'GET',
@@ -22,13 +21,12 @@ export async function generateTickets(productId, qty, maxTickets) {
       }
 
       const { usedTickets: batch = [], total = 0 } = await response.json();
-      usedTickets.push(...batch);
+      usedTickets = usedTickets.concat(batch);
 
       skip += pageSize;
-      hasMore = usedTickets.length < total;
+      hasMore = batch.length === pageSize;
     }
 
-    // 🎟️ Generează bilete unice
     const tickets = [];
     while (tickets.length < qty) {
       const num = Math.floor(Math.random() * maxTickets) + 1;
@@ -44,3 +42,4 @@ export async function generateTickets(productId, qty, maxTickets) {
     throw err;
   }
 }
+

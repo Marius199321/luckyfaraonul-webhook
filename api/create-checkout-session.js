@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   const {
-    fullName,
+    name,
     phone,
     email,
     address,
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       ],
       mode: 'payment',
       metadata: {
-        fullName,
+        name,
         phone,
         email,
         address,
@@ -56,8 +56,8 @@ export default async function handler(req, res) {
         productName,
         qty
       },
-      success_url: 'https://www.luckyfaraonul.com/success',
-      cancel_url: 'https://www.luckyfaraonul.com/cancel'
+      success_url: process.env.SUCCESS_URL || 'https://www.luckyfaraonul.com/success',
+      cancel_url: process.env.CANCEL_URL || 'https://www.luckyfaraonul.com/cancel'
     });
 
     console.log("🎉 Stripe session creată:", session.id);
@@ -71,6 +71,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
 
 
