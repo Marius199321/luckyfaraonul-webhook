@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 export const sendZohoEmail = async ({
-  email, fullName, phone, address, country,
+  email, name, phone, address, country,
   productName, orderNumber, tickets = [], instantWins = [],
   amount, purchaseDate
 }) => {
@@ -30,7 +30,7 @@ export const sendZohoEmail = async ({
 
     const htmlContent = `
       <div style="padding: 30px; font-family: Arial; max-width: 600px; margin:auto;">
-        <h2>✅ Thank you for your order, ${fullName || 'Customer'}!</h2>
+        <h2>✅ Thank you for your order, ${name || 'Customer'}!</h2>
         <p><strong>Product:</strong> ${productName || '-'}</p>
         <p><strong>Order Number:</strong> ${orderNumber || '-'}</p>
         <p><strong>Tickets:</strong> ${Array.isArray(tickets) ? tickets.join(', ') : '—'}</p>
@@ -62,4 +62,5 @@ export const sendZohoEmail = async ({
     throw err;
   }
 };
+
 
