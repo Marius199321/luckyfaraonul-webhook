@@ -7,6 +7,8 @@ export async function generateTickets(productId, qty, maxTickets) {
     let skip = 0;
     const pageSize = 1000;
 
+    console.log(`🎟️ Generare bilete pentru produs ${productId}, qty: ${qty}, max: ${maxTickets}`);
+
     while (hasMore) {
       const response = await fetch(`${process.env.WIX_BACKEND_URL}/getUsedTickets?productId=${productId}&skip=${skip}&limit=${pageSize}`, {
         method: 'GET',
@@ -27,19 +29,25 @@ export async function generateTickets(productId, qty, maxTickets) {
       hasMore = batch.length === pageSize;
     }
 
-    const tickets = [];
-    while (tickets.length < qty) {
+    if (usedTickets.length + qty > maxTickets) {
+      throw new Error("❌ Nu mai sunt suficiente bilete disponibile pentru acest produs.");
+    }
+
+    const tickets = new Set();
+
+    while (tickets.size < qty) {
       const num = Math.floor(Math.random() * maxTickets) + 1;
-      if (!usedTickets.includes(num) && !tickets.includes(num)) {
-        tickets.push(num);
+      if (!usedTickets.includes(num)) {
+        tickets.add(num);
       }
     }
 
-    return tickets;
+    return Array.from(tickets);
 
   } catch (err) {
     console.error("❌ Eroare la generarea biletelor:", err.message);
     throw err;
   }
 }
+
 
