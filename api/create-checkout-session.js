@@ -3,28 +3,33 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const allowedOrigin = 'https://www.luckyfaraonul.com';
 
-export default async function handler(req, res) {
+export const config = {
+  api: {
+    bodyParser: true,
+    externalResolver: true,
+  },
+};
+
+async function handler(req, res) {
   const origin = req.headers.origin;
 
-  // ✅ CORS headers
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', origin === allowedOrigin ? origin : 'null');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // ✅ Handle preflight (OPTIONS)
+  // Handle preflight OPTIONS
   if (req.method === 'OPTIONS') {
-    res.status(204).end();
-    return;
+    return res.status(204).end();
   }
 
-  // ❌ Block non-POST methods
+  // Block all non-POST
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // ✅ Parse JSON body safely
   let body = req.body;
   if (typeof req.body === 'string' && req.headers['content-type'] === 'application/json') {
     try {
@@ -63,6 +68,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
+
+export default handler;
+
 
 
 
