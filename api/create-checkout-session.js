@@ -2,11 +2,10 @@
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 const allowedOrigin = 'https://www.luckyfaraonul.com';
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
+  const origin = req.headers.origin || '';
 
   res.setHeader('Access-Control-Allow-Origin', origin === allowedOrigin ? origin : 'null');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -14,7 +13,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).end(); // Preflight OK
+    return res.status(200).end(); // <- important să fie 200
   }
 
   if (req.method !== 'POST') {
