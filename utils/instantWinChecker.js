@@ -20,15 +20,12 @@ export async function instantWinChecker(productId, tickets) {
     }
 
     const data = await res.json();
-    const list = Array.isArray(data.instantWinList) ? data.instantWinList : [];
+    const winMap = data.instantWinMap || {};
 
-    if (list.length === 0) {
-      console.log(`ℹ️ instantWinList gol pentru produs ${productId}`);
-      return [];
-    }
+    const winners = tickets
+      .filter(t => winMap.hasOwnProperty(t.toString()))
+      .map(t => ({ ticketNumber: t, prize: winMap[t.toString()] }));
 
-    const winSet = new Set(list);
-    const winners = tickets.filter(t => winSet.has(t));
     return winners;
 
   } catch (err) {
@@ -36,3 +33,4 @@ export async function instantWinChecker(productId, tickets) {
     return [];
   }
 }
+

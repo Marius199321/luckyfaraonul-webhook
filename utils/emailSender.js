@@ -1,68 +1,74 @@
 import nodemailer from 'nodemailer';
 
-export const sendZohoEmail = async ({
-  email, name, phone, address, country,
-  productName, orderNumber, tickets = [], instantWinners = [],
-  amount, purchaseDate
-}) => {
-  try {
-    const zohoEmail = process.env.ZOHO_EMAIL;
-    const zohoPassword = process.env.ZOHO_PASSWORD;
-
-    if (!zohoEmail || !zohoPassword) {
-      console.error("❌ Lipsesc datele din .env: ZOHO_EMAIL sau ZOHO_PASSWORD");
-      throw new Error("Missing Zoho credentials");
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.zoho.eu',
-      port: 465,
-      secure: true,
-      auth: {
-        user: zohoEmail,
-        pass: zohoPassword
-      }
-    });
-
-    const instantWinText = Array.isArray(instantWinners) && instantWinners.length > 0
-      ? `<p><strong style="color:green">🎉 Instant Win Tickets:</strong> ${instantWinners.join(', ')}</p>`
-      : `<p><strong style="color:gray">😞 No instant win this time.</strong></p>`;
-
-    const htmlContent = `
-      <div style="padding: 30px; font-family: Arial; max-width: 600px; margin:auto;">
-        <h2>✅ Thank you for your order, ${name || 'Customer'}!</h2>
-        <p><strong>Product:</strong> ${productName || '-'}</p>
-        <p><strong>Order Number:</strong> ${orderNumber || '-'}</p>
-        <p><strong>Tickets:</strong> ${Array.isArray(tickets) ? tickets.join(', ') : '—'}</p>
-        ${instantWinText}
-        <p><strong>Amount Paid:</strong> £${amount ? amount.toFixed(2) : '0.00'}</p>
-        <p><strong>Purchase Date:</strong> ${purchaseDate || '-'}</p>
-        <hr />
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Phone:</strong> ${phone || '-'}</p>
-        <p><strong>Address:</strong> ${address || '-'}, ${country || '-'}</p>
-        <hr />
-        <p style="font-size:12px;color:#777;">This email was sent by LuckyFaraonul.com</p>
-      </div>
-    `;
-
-    const mailOptions = {
-      from: `"LuckyFaraonul" <${zohoEmail}>`,
-      to: email,
-      subject: `🎫 Your LuckyFaraonul Tickets | Order ${orderNumber || ''}`,
-      html: htmlContent,
-      text: `Thank you for your order, ${name || 'Customer'}.\nProduct: ${productName}\nOrder No: ${orderNumber}\nTickets: ${tickets.join(', ')}\nAmount Paid: £${amount}\n...`
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email trimis către ${email}. ID: ${info.messageId}`);
-    return true;
-
-  } catch (err) {
-    console.error("❌ Eroare la trimiterea emailului:", err.message);
-    throw err;
+const transporter = nodemailer.createTransport({
+  host: 'smtp.zoho.com',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.ZOHO_EMAIL,
+    pass: process.env.ZOHO_PASSWORD
   }
-};
+});
+
+export async function sendZohoEmail({
+  email,
+  name,
+  phone,
+  address,
+  country,
+  productName,
+  orderNumber,
+  amount,
+  purchaseDate,
+  tickets = [],
+  instantWinners = []
+}) {
+  const subject = `🎟️ Confirmare comandă #${orderNumber} - ${productName}`;
+
+  const instantWinText = instantWinners.length
+    ? instantWinners.map(w => `• Bilet ${w.ticketNumber}: ${w.prize}`).join('<br>')
+    : '–';
+
+  const ticketList = tickets.sort((a, b) => a - b).join(', ');
+
+  const html = `
+    <h2>Mulțumim pentru participare, ${name}!</h2>
+    <p>Detaliile comenzii tale:</p>
+
+    <ul>
+      <li><strong>Produs:</strong> ${productName}</li>
+      <li><strong>Număr comandă:</strong> ${orderNumber}</li>
+      <li><strong>Data achiziției:</strong> ${purchaseDate}</li>
+      <li><strong>Total plătit:</strong> £${amount.toFixed(2)}</li>
+      <li><strong>Bilete cumpărate:</strong> ${tickets.length}</li>
+    </ul>
+
+    <p><strong>Lista biletelor tale:</strong><br>${ticketList}</p>
+
+    <p><strong>Câștiguri Instant:</strong><br>${instantWinText}</p>
+
+    <hr>
+    <p><strong>Date personale:</strong></p>
+    <p>
+      ${name}<br>
+      ${phone}<br>
+      ${email}<br>
+      ${address}<br>
+      ${country}
+    </p>
+    <p style="font-size:12px; color:#777;">LUCKYFARAONUL LTD</p>
+  `;
+
+  const mailOptions = {
+    from: `"LuckyFaraonul" <${process.env.ZOHO_EMAIL}>`,
+    to: email,
+    subject,
+    html
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`📧 Email trimis către ${email}`);
+}
 
 
 

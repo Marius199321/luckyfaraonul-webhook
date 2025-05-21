@@ -70,10 +70,19 @@ export default async function handler(req, res) {
       method: 'GET',
       headers: { Authorization: process.env.WIX_FUNCTION_SECRET }
     });
-    giveawayDetails = await res.json();
+
+    const text = await res.text();
+    giveawayDetails = text ? JSON.parse(text) : null;
+
+    if (!giveawayDetails) {
+      throw new Error("Răspunsul de la getGiveawayDetails este gol sau invalid.");
+    }
+
     console.log("🎁 Detalii giveaway:", giveawayDetails);
+
   } catch (err) {
     console.error("❌ Eroare la preluare giveaway:", err.message);
+    return res.status(500).json({ error: "Eroare la preluarea detaliilor produsului" });
   }
 
   // 🔹 3. Generează bilete
@@ -97,16 +106,19 @@ export default async function handler(req, res) {
   }
 
   // 🔹 5. Creează payload pentru salvare în Tickets
-  const ticketsPayload = generatedTickets.map(ticketNumber => ({
-    ticketNumber,
-    orderNumber,
-    productId,
-    email,
-    name,
-    isInstantWin: instantWinners.includes(ticketNumber),
-    instantPrize: instantWinners.includes(ticketNumber) ? giveawayDetails.instantPrize : null,
-    createdAt: now.toISOString()
-  }));
+  const ticketsPayload = generatedTickets.map(ticketNumber => {
+    const match = instantWinners.find(w => w.ticketNumber === ticketNumber);
+    return {
+      ticketNumber,
+      orderNumber,
+      productId,
+      email,
+      name,
+      isInstantWin: !!match,
+      instantPrize: match ? match.prize : null,
+      createdAt: now.toISOString()
+    };
+  });
 
   try {
     await fetch(`${process.env.WIX_BACKEND_URL}/saveTickets`, {
@@ -144,7 +156,6 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
-
 
 
 
