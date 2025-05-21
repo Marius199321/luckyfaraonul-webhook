@@ -9,39 +9,39 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
 
   res.setHeader('Access-Control-Allow-Origin', origin === allowedOrigin ? origin : 'null');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).end(); // OK fără conținut
+    return res.status(204).end(); // Preflight OK
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const {
-    name,
-    phone,
-    email,
-    address,
-    country,
-    productId,
-    productName,
-    qty,
-    stripePriceId
-  } = req.body;
-
-  console.log("📦 Body primit în create-checkout-session:", req.body);
-
-  if (!stripePriceId || !qty || !email) {
-    return res.status(400).json({
-      error: "Missing required fields: stripePriceId, qty, or email"
-    });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
+    const {
+      name,
+      phone,
+      email,
+      address,
+      country,
+      productId,
+      productName,
+      qty,
+      stripePriceId
+    } = req.body;
+
+    console.log("📦 Body primit în create-checkout-session:", req.body);
+
+    if (!stripePriceId || !qty || !email) {
+      return res.status(400).json({
+        error: "Missing required fields: stripePriceId, qty, or email"
+      });
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -76,6 +76,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
 
 
