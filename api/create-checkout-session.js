@@ -3,31 +3,30 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
+  // ✅ CORS pentru toate metodele
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(204).end();
+    return res.status(204).end(); // preflight OK
   }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Poți restricționa mai târziu
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const {
+    name, phone, email, address,
+    country, productId, productName,
+    qty, stripePriceId
+  } = req.body;
+
+  if (!stripePriceId || !qty || !email) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
   try {
-    const {
-      name, phone, email, address,
-      country, productId, productName,
-      qty, stripePriceId
-    } = req.body;
-
-    if (!stripePriceId || !qty || !email) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price: stripePriceId, quantity: Number(qty) }],
