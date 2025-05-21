@@ -1,48 +1,33 @@
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const allowedOrigin = 'https://www.luckyfaraonul.com';
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
-
-  // CORS HEADERS
-  res.setHeader('Access-Control-Allow-Origin', origin === allowedOrigin ? origin : 'null');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-  // 🧠 Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
-    return res.status(204).end(); // Important: trebuie să răspundă cu 204 OK
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(204).end();
   }
 
-  // ❌ Reject anything else than POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // 🔄 Ensure body is JSON
-  let body = req.body;
-  if (typeof req.body === 'string' && req.headers['content-type'] === 'application/json') {
-    try {
-      body = JSON.parse(req.body);
-    } catch (err) {
-      return res.status(400).json({ error: 'Invalid JSON in request body' });
-    }
-  }
-
-  const {
-    name, phone, email, address,
-    country, productId, productName,
-    qty, stripePriceId
-  } = body;
-
-  if (!stripePriceId || !qty || !email) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Poți restricționa mai târziu
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   try {
+    const {
+      name, phone, email, address,
+      country, productId, productName,
+      qty, stripePriceId
+    } = req.body;
+
+    if (!stripePriceId || !qty || !email) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price: stripePriceId, quantity: Number(qty) }],
