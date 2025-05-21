@@ -1,4 +1,3 @@
-// api/create-checkout-session.js
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -12,21 +11,36 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
 
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  let body = req.body;
+
+  // Manual JSON parsing in case body is sent as a string (common from external clients)
+  if (typeof req.body === 'string' && req.headers['content-type'] === 'application/json') {
+    try {
+      body = JSON.parse(req.body);
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid JSON in request body' });
+    }
+  }
+
+  const {
+    name, phone, email, address,
+    country, productId, productName,
+    qty, stripePriceId
+  } = body;
+
+  if (!stripePriceId || !qty || !email) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
   try {
-    const {
-      name, phone, email, address,
-      country, productId, productName,
-      qty, stripePriceId
-    } = req.body;
-
-    if (!stripePriceId || !qty || !email) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price: stripePriceId, quantity: Number(qty) }],
@@ -40,12 +54,12 @@ export default async function handler(req, res) {
     });
 
     return res.status(200).json({ id: session.id, sessionUrl: session.url });
-
   } catch (err) {
     console.error("Stripe session error:", err.message);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
+
 
 
 
