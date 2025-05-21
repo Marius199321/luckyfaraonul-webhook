@@ -6,22 +6,25 @@ const allowedOrigin = 'https://www.luckyfaraonul.com';
 export default async function handler(req, res) {
   const origin = req.headers.origin;
 
+  // ✅ Setări CORS
   res.setHeader('Access-Control-Allow-Origin', origin === allowedOrigin ? origin : 'null');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
+  // ✅ Handlere pentru request preflight (OPTIONS)
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
 
+  // ❌ Rejactăm orice altceva în afară de POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // ✅ Asigură-te că body-ul e parsabil JSON
   let body = req.body;
 
-  // Manual JSON parsing in case body is sent as a string (common from external clients)
   if (typeof req.body === 'string' && req.headers['content-type'] === 'application/json') {
     try {
       body = JSON.parse(req.body);
@@ -59,6 +62,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
+
 
 
 
