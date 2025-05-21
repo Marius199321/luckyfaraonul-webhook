@@ -4,7 +4,6 @@ import { buffer } from 'micro';
 import { generateOrderNumber } from '../utils/generateOrderNumber.js';
 import { sendZohoEmail } from '../utils/emailSender.js';
 import { generateTickets } from '../utils/generateTickets.js';
-import { instantWinChecker } from '../utils/instantWinChecker.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -27,7 +26,7 @@ export default async function handler(req, res) {
   }
 
   if (event.type !== 'checkout.session.completed') {
-    return res.status(200).json({ received: true }); // Ignoră alte tipuri
+    return res.status(200).json({ received: true });
   }
 
   const session = event.data.object;
@@ -40,7 +39,7 @@ export default async function handler(req, res) {
 
   console.log("🎯 Stripe session completă pentru", email);
 
-  // 🔹 1. Salvează comanda (fără bilete)
+  // 🔹 1. Salvează comanda
   try {
     await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
       method: 'POST',
@@ -63,7 +62,7 @@ export default async function handler(req, res) {
     console.error("❌ Eroare la salvarea comenzii:", err.message);
   }
 
-  // 🔹 2. Preia detalii produs
+  // 🔹 2. Preia detalii giveaway
   let giveawayDetails = {};
   try {
     const res = await fetch(`${process.env.WIX_BACKEND_URL}/getGiveawayDetails?productId=${productId}`, {
@@ -96,16 +95,18 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Ticket generation failed" });
   }
 
-  // 🔹 4. Verifică instant win
-  let instantWinners = [];
-  try {
-    instantWinners = await instantWinChecker(productId, generatedTickets);
-    console.log(`🏆 ${instantWinners.length} câștiguri instant`);
-  } catch (err) {
-    console.error("❌ Eroare instant win:", err.message);
-  }
+  // 🔹 4. Verificare câștig instant (bazat pe instantWinMap)
+  const instantMap = giveawayDetails.instantWinMap || {};
+  const instantWinners = generatedTickets
+    .filter(ticket => instantMap[ticket])
+    .map(ticket => ({
+      ticketNumber: ticket,
+      prize: instantMap[ticket]
+    }));
 
-  // 🔹 5. Creează payload pentru salvare în Tickets
+  console.log(`🏆 ${instantWinners.length} câștiguri instant`);
+
+  // 🔹 5. Pregătire salvare bilete
   const ticketsPayload = generatedTickets.map(ticketNumber => {
     const match = instantWinners.find(w => w.ticketNumber === ticketNumber);
     return {
@@ -134,7 +135,7 @@ export default async function handler(req, res) {
     console.error("❌ Eroare salvare bilete:", err.message);
   }
 
-  // 🔹 6. Trimite email
+  // 🔹 6. Email
   try {
     await sendZohoEmail({
       email,
