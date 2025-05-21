@@ -70,11 +70,15 @@ export default async function handler(req, res) {
       headers: { Authorization: process.env.WIX_FUNCTION_SECRET }
     });
 
-    const text = await res.text();
-    giveawayDetails = text ? JSON.parse(text) : null;
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`GET giveawayDetails: ${res.status} - ${errText}`);
+    }
 
-    if (!giveawayDetails) {
-      throw new Error("Răspunsul de la getGiveawayDetails este gol sau invalid.");
+    giveawayDetails = await res.json();
+
+    if (!giveawayDetails || typeof giveawayDetails !== 'object') {
+      throw new Error("❌ Răspunsul de la getGiveawayDetails este gol sau invalid.");
     }
 
     console.log("🎁 Detalii giveaway:", giveawayDetails);
@@ -95,7 +99,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Ticket generation failed" });
   }
 
-  // 🔹 4. Verificare câștig instant (bazat pe instantWinMap)
+  // 🔹 4. Verificare câștig instant
   const instantMap = giveawayDetails.instantWinMap || {};
   const instantWinners = generatedTickets
     .filter(ticket => instantMap[ticket])
@@ -135,7 +139,7 @@ export default async function handler(req, res) {
     console.error("❌ Eroare salvare bilete:", err.message);
   }
 
-  // 🔹 6. Email
+  // 🔹 6. Trimite email
   try {
     await sendZohoEmail({
       email,
@@ -157,6 +161,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
 
