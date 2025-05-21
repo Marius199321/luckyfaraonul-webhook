@@ -22,9 +22,13 @@ export async function instantWinChecker(productId, tickets) {
     const data = await res.json();
     const winMap = data.instantWinMap || {};
 
-    const winners = tickets
-      .filter(t => winMap.hasOwnProperty(t.toString()))
-      .map(t => ({ ticketNumber: t, prize: winMap[t.toString()] }));
+    const winners = tickets.reduce((acc, ticketNumber) => {
+      const key = ticketNumber.toString();
+      if (winMap[key]) {
+        acc.push({ ticketNumber: key, prize: winMap[key] });
+      }
+      return acc;
+    }, []);
 
     return winners;
 
@@ -33,4 +37,5 @@ export async function instantWinChecker(productId, tickets) {
     return [];
   }
 }
+
 

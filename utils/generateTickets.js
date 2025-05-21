@@ -1,8 +1,12 @@
 import fetch from 'node-fetch';
 
-export async function generateTickets(productId, qty, maxTickets) {
+export async function generateTickets(productId, qty, maxTickets = 50000) {
   try {
-    console.log(`🎟️ Generare bilete: produs=${productId}, qty=${qty}, max=${maxTickets}`);
+    if (!productId || !qty || qty <= 0) {
+      throw new Error("Parametri invalizi pentru generarea biletelor.");
+    }
+
+    console.log(`🎟️ Generare bilete pentru produs=${productId} | qty=${qty} | max=${maxTickets}`);
 
     let usedTickets = new Set();
     let hasMore = true;
@@ -11,7 +15,7 @@ export async function generateTickets(productId, qty, maxTickets) {
 
     // 🔁 1. Obține toate biletele deja folosite din CMS
     while (hasMore) {
-      const res = await fetch(`${process.env.WIX_BACKEND_URL}/getUsedTickets?productId=${productId}&skip=${skip}&limit=${pageSize}`, {
+      const res = await fetch(`${process.env.WIX_BACKEND_URL}/get_getUsedTickets?productId=${productId}&skip=${skip}&limit=${pageSize}`, {
         method: 'GET',
         headers: {
           'Authorization': process.env.WIX_FUNCTION_SECRET
@@ -25,17 +29,17 @@ export async function generateTickets(productId, qty, maxTickets) {
 
       const data = await res.json();
       const batch = data.usedTickets || [];
-      batch.forEach(t => usedTickets.add(t));
+      batch.forEach(t => usedTickets.add(Number(t))); // Convertim în numere
       skip += pageSize;
       hasMore = batch.length === pageSize;
     }
 
-    // 🔒 2. Verifică dacă mai ai loc pentru `qty`
+    // 🔒 2. Verifică dacă mai sunt suficiente bilete
     if (usedTickets.size + qty > maxTickets) {
-      throw new Error(`❌ Nu mai sunt suficiente bilete libere (există ${usedTickets.size}, cerute ${qty}, max ${maxTickets}).`);
+      throw new Error(`❌ Nu sunt destule bilete disponibile. Există ${usedTickets.size}, cerute ${qty}, max ${maxTickets}`);
     }
 
-    // 🎲 3. Generează bilete unice care nu sunt deja folosite
+    // 🎲 3. Generează bilete unice
     const newTickets = new Set();
     while (newTickets.size < qty) {
       const n = Math.floor(Math.random() * maxTickets) + 1;
@@ -44,12 +48,14 @@ export async function generateTickets(productId, qty, maxTickets) {
       }
     }
 
-    return Array.from(newTickets);
+    console.log(`✅ ${newTickets.size} bilete generate`);
+    return Array.from(newTickets); // sau `.map(n => n.toString())` dacă ai nevoie de stringuri
 
   } catch (err) {
     console.error("❌ Eroare la generarea biletelor:", err.message);
-    throw err;
+    throw new Error("Eroare la generateTickets: " + err.message);
   }
 }
+
 
 
