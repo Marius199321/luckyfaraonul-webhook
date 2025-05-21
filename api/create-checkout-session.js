@@ -3,33 +3,26 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const allowedOrigin = 'https://www.luckyfaraonul.com';
 
-export const config = {
-  api: {
-    bodyParser: true,
-    externalResolver: true,
-  },
-};
-
-async function handler(req, res) {
+export default async function handler(req, res) {
   const origin = req.headers.origin;
 
-  // CORS Headers
+  // CORS HEADERS
   res.setHeader('Access-Control-Allow-Origin', origin === allowedOrigin ? origin : 'null');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // Handle preflight OPTIONS
+  // 🧠 Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return res.status(204).end(); // Important: trebuie să răspundă cu 204 OK
   }
 
-  // Block all non-POST
+  // ❌ Reject anything else than POST
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // 🔄 Ensure body is JSON
   let body = req.body;
   if (typeof req.body === 'string' && req.headers['content-type'] === 'application/json') {
     try {
@@ -69,7 +62,6 @@ async function handler(req, res) {
   }
 }
 
-export default handler;
 
 
 
