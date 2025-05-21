@@ -15,10 +15,10 @@ export async function generateTickets(productId, qty, maxTickets = 50000) {
 
     // 🔁 1. Obține toate biletele deja folosite din CMS
     while (hasMore) {
-      const res = await fetch(`${process.env.WIX_BACKEND_URL}/get_getUsedTickets?productId=${productId}&skip=${skip}&limit=${pageSize}`, {
+      const res = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/get_getUsedTickets?productId=${productId}&skip=${skip}&limit=${pageSize}`, {
         method: 'GET',
         headers: {
-          'Authorization': process.env.WIX_FUNCTION_SECRET
+          'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
         }
       });
 
@@ -39,13 +39,21 @@ export async function generateTickets(productId, qty, maxTickets = 50000) {
       throw new Error(`❌ Nu sunt destule bilete disponibile. Există ${usedTickets.size}, cerute ${qty}, max ${maxTickets}`);
     }
 
-    // 🎲 3. Generează bilete unice
+    // 🎲 3. Generează bilete unice, fail-safe
     const newTickets = new Set();
-    while (newTickets.size < qty) {
+    let attempts = 0;
+    const maxAttempts = qty * 10;
+
+    while (newTickets.size < qty && attempts < maxAttempts) {
       const n = Math.floor(Math.random() * maxTickets) + 1;
       if (!usedTickets.has(n) && !newTickets.has(n)) {
         newTickets.add(n);
       }
+      attempts++;
+    }
+
+    if (newTickets.size < qty) {
+      throw new Error("Nu s-au putut genera toate biletele. Încearcă din nou.");
     }
 
     console.log(`✅ ${newTickets.size} bilete generate`);

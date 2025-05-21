@@ -41,11 +41,11 @@ export default async function handler(req, res) {
 
   // 🔹 1. Salvează comanda
   try {
-    await fetch(`${process.env.WIX_BACKEND_URL}/savePurchase`, {
+    await fetch(`${process.env.WIX_BACKEND_URL}/_functions/post_savePurchase`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': process.env.WIX_FUNCTION_SECRET
+        'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
       },
       body: JSON.stringify({
         name, phone, email, address, country,
@@ -62,12 +62,14 @@ export default async function handler(req, res) {
     console.error("❌ Eroare la salvarea comenzii:", err.message);
   }
 
-  // 🔹 2. Preia detalii giveaway
+  // 🔹 2. Preia detalii giveaway (actualizat)
   let giveawayDetails = {};
   try {
-    const res = await fetch(`${process.env.WIX_BACKEND_URL}/getGiveawayDetails?productId=${productId}`, {
+    const res = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/get_getGiveawayDetails?productId=${productId}`, {
       method: 'GET',
-      headers: { Authorization: process.env.WIX_FUNCTION_SECRET }
+      headers: {
+        'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+      }
     });
 
     if (!res.ok) {
@@ -126,11 +128,11 @@ export default async function handler(req, res) {
   });
 
   try {
-    await fetch(`${process.env.WIX_BACKEND_URL}/saveTickets`, {
+    await fetch(`${process.env.WIX_BACKEND_URL}/_functions/post_saveTickets`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': process.env.WIX_FUNCTION_SECRET
+        'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
       },
       body: JSON.stringify(ticketsPayload)
     });
@@ -161,6 +163,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
 
