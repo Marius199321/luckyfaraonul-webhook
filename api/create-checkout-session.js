@@ -4,9 +4,20 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
+  // CORS Preflight
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).end();
+  }
+
+  // Restricție pentru POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
     const {
@@ -52,9 +63,15 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('❌ create-checkout-session error:', err);
-    return res.status(500).json({ error: 'Unable to create Stripe session' });
+
+    return res.status(500).json({
+      error: 'Unable to create Stripe session',
+      details: err.message,
+      raw: err.raw || null
+    });
   }
 }
+
 
 
 
