@@ -1,18 +1,8 @@
-// Generează un sufix aleatoriu din caractere sigure pentru citire
-function generateRandomSuffix(length = 8) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // fără 0, 1, O, I
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
+// utils/generateOrderNumber.js
 
-// Generează un cod de comandă unic, ex: LF-20250521-AB3K8Z4M
-export function generateOrderNumber() {
+export default function generateOrderNumber(prefix = "ORD") {
   const now = new Date();
-  const datePart = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-  const suffix = generateRandomSuffix();
-  return `LF-${datePart}-${suffix}`;
+  const datePart = now.toISOString().split("T")[0].replace(/-/g, "");
+  const randomPart = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+  return `${prefix}-${datePart}-${randomPart}`;
 }
-

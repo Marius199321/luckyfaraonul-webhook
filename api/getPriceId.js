@@ -1,67 +1,37 @@
 // api/getPriceId.js
-import fetch from 'node-fetch';
+import axios from 'axios';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    return res.status(200).end();
-  }
-
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const { productId } = req.body;
 
   if (!productId) {
-    return res.status(400).json({ error: 'Missing productId in request body' });
+    return res.status(400).json({ error: 'Missing productId' });
   }
 
-  const wixBackendUrl = process.env.WIX_BACKEND_URL;
-  const wixSecret = process.env.WIX_FUNCTION_SECRET;
-  const endpoint = `${wixBackendUrl}/getPriceId`;
-
   try {
-    console.log("🔁 Cerere către Wix backend:", endpoint, "cu productId:", productId);
+    const response = await axios.post(
+      'https://www.luckyfaraonul.com/_functions/get_getGiveawayDetails',
+      { productId },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+        }
+      }
+    );
 
-    const wixResponse = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-wix-function-secret': wixSecret
-      },
-      body: JSON.stringify({ productId })
-    });
-
-    const text = await wixResponse.text();
-
-    if (!wixResponse.ok) {
-      console.error("❌ Răspuns invalid de la Wix:", wixResponse.status, text);
-      return res.status(500).json({ error: 'Invalid response from Wix backend', details: text });
+    const data = response.data;
+    if (!data.stripePriceId) {
+      return res.status(404).json({ error: 'stripePriceId not found in product' });
     }
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (parseError) {
-      console.error("❌ Eroare la parsarea JSON:", parseError.message);
-      return res.status(500).json({ error: 'Invalid JSON from Wix backend' });
-    }
-
-    if (!data?.stripePriceId) {
-      console.error("⚠️ stripePriceId lipsă în răspuns:", data);
-      return res.status(404).json({ error: 'stripePriceId not found' });
-    }
-
-    console.log("✅ stripePriceId returnat:", data.stripePriceId);
     return res.status(200).json({ stripePriceId: data.stripePriceId });
-
-  } catch (error) {
-    console.error("❌ Eroare fetch Wix:", error.message);
-    return res.status(500).json({ error: 'Failed to fetch stripePriceId' });
+  } catch (err) {
+    console.error('❌ Eroare getPriceId:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 

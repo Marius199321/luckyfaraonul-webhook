@@ -1,41 +1,32 @@
-import fetch from 'node-fetch';
+// utils/instantWinChecker.js
+import axios from 'axios';
 
-export async function instantWinChecker(productId, tickets) {
-  try {
-    if (!Array.isArray(tickets) || tickets.length === 0) {
-      console.warn("⚠️ Lista de bilete este goală sau invalidă.");
+export default function instantWinChecker(tickets, productId) {
+  return axios
+    .get(`https://www.luckyfaraonul.com/_functions/getInstantWinList?productId=${productId}`)
+    .then((res) => {
+      const winMap = res.data.instantWinMap || {};
+      const winners = [];
+
+      for (const ticket of tickets) {
+        const prize = winMap[ticket.ticketNumber];
+        if (prize) {
+          ticket.isInstantWin = true;
+          ticket.instantPrize = prize;
+          winners.push({ ticketNumber: ticket.ticketNumber, prize });
+        } else {
+          ticket.isInstantWin = false;
+          ticket.instantPrize = null;
+        }
+      }
+
+      return winners;
+    })
+    .catch((err) => {
+      console.error("❌ Eroare la verificarea Instant Win:", err);
+      for (const ticket of tickets) {
+        ticket.isInstantWin = false;
+        ticket.instantPrize = null;
+      }
       return [];
-    }
-
-    const res = await fetch(`${process.env.WIX_BACKEND_URL}/getInstantWinList?productId=${productId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': process.env.WIX_FUNCTION_SECRET
-      }
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Wix fetch error ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
-    const winMap = data.instantWinMap || {};
-
-    const winners = tickets.reduce((acc, ticketNumber) => {
-      const key = ticketNumber.toString();
-      if (winMap[key]) {
-        acc.push({ ticketNumber: key, prize: winMap[key] });
-      }
-      return acc;
-    }, []);
-
-    return winners;
-
-  } catch (err) {
-    console.error(`❌ Eroare instantWinChecker pentru produs ${productId}:`, err.message);
-    return [];
-  }
-}
-
-

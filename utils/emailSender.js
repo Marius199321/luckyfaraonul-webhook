@@ -1,94 +1,50 @@
+// utils/emailSender.js
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.zoho.eu',
+  host: 'smtp.zoho.com',
   port: 465,
   secure: true,
   auth: {
-    user: process.env.ZOHO_EMAIL,
-    pass: process.env.ZOHO_PASSWORD
+    user: process.env.ZOHO_USER,
+    pass: process.env.ZOHO_PASS
   }
 });
 
-export async function sendZohoEmail({
-  email,
+export default async function sendConfirmationEmail({
+  to,
   name,
-  phone,
-  address,
-  country,
-  productName,
   orderNumber,
+  tickets,
+  total,
   amount,
-  purchaseDate,
-  tickets = [],
-  instantWinners = []
+  productName
 }) {
+  const ticketList = tickets.map(t => `#${t.ticketNumber}`).join(', ');
+
+  const htmlContent = `
+    <h2>Mulțumim pentru participare, ${name}!</h2>
+    <p>Comanda ta <strong>#${orderNumber}</strong> a fost înregistrată cu succes.</p>
+    <p><strong>Produs:</strong> ${productName}</p>
+    <p><strong>Bilete:</strong> ${ticketList}</p>
+    <p><strong>Total bilete:</strong> ${tickets.length}</p>
+    <p><strong>Suma plătită:</strong> £${(amount / 100).toFixed(2)}</p>
+    <br />
+    <p>Mult succes!</p>
+    <p><strong>LuckyFaraonul</strong></p>
+  `;
+
   try {
-    const subject = `🎟️ Confirmare comandă #${orderNumber} - ${productName}`;
-
-    const instantWinText = instantWinners.length
-      ? instantWinners.map(w => `• Bilet ${w.ticketNumber}: ${w.prize}`).join('<br>')
-      : '–';
-
-    const ticketList = tickets
-      .map(n => Number(n))
-      .sort((a, b) => a - b)
-      .join(', ');
-
-    const html = `
-      <h2>Mulțumim pentru participare, ${name}!</h2>
-      <p>Detaliile comenzii tale:</p>
-      <ul>
-        <li><strong>Produs:</strong> ${productName}</li>
-        <li><strong>Număr comandă:</strong> ${orderNumber}</li>
-        <li><strong>Data achiziției:</strong> ${purchaseDate}</li>
-        <li><strong>Total plătit:</strong> £${amount.toFixed(2)}</li>
-        <li><strong>Bilete cumpărate:</strong> ${tickets.length}</li>
-      </ul>
-      <p><strong>Lista biletelor tale:</strong><br>${ticketList}</p>
-      <p><strong>Câștiguri Instant:</strong><br>${instantWinText}</p>
-      <hr>
-      <p><strong>Date personale:</strong></p>
-      <p>
-        ${name}<br>
-        ${phone}<br>
-        ${email}<br>
-        ${address}<br>
-        ${country}
-      </p>
-      <p style="font-size:12px; color:#777;">LUCKYFARAONUL LTD</p>
-    `;
-
-    const text = `
-Confirmare comandă #${orderNumber} - ${productName}
-
-Bilete: ${tickets.length}
-Lista: ${ticketList}
-Câștiguri instant: ${instantWinners.length ? instantWinners.map(w => `${w.ticketNumber}: ${w.prize}`).join(', ') : '–'}
-
-Client: ${name}, ${phone}, ${email}
-Adresă: ${address}, ${country}
-Suma plătită: £${amount.toFixed(2)}
-Data: ${purchaseDate}
-www.luckyfaraonul.com
-`;
-
-    const mailOptions = {
-      from: `"LuckyFaraonul" <${process.env.ZOHO_EMAIL}>`,
-      to: email,
-      replyTo: process.env.ZOHO_EMAIL,
-      subject,
-      text,
-      html
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`📧 Email trimis către ${email}`);
+    await transporter.sendMail({
+      from: `LuckyFaraonul <${process.env.ZOHO_USER}>`,
+      to,
+      subject: `Confirmare comandă #${orderNumber}`,
+      html: htmlContent
+    });
+    console.log(`📧 Email trimis cu succes la ${to}`);
   } catch (err) {
-    console.error("❌ Eroare la trimiterea emailului:", err.message);
-    throw new Error("Emailul nu a putut fi trimis.");
+    console.error('❌ Eroare trimitere email:', err);
   }
 }
-
 
 
