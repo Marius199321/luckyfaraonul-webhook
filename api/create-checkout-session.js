@@ -2,19 +2,21 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
-  // ✅ OPTIONS Preflight fixat corect
+  // ✅ OPTIONS Preflight fix
   if (req.method === 'OPTIONS') {
-    res.status(204).setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Max-Age', '86400'); // cache preflight
-    return res.end();
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end(); // 🔥 corect pentru Vercel (fără res.end())
   }
 
-  // ✅ CORS Headers pentru POST
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // ✅ CORS headers pentru POST
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // ❌ Only allow POST
+  // ❌ Doar POST e permis
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -64,6 +66,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Stripe error: " + err.message });
   }
 }
+
 
 
 
