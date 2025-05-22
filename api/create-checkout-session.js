@@ -1,38 +1,48 @@
 import Stripe from 'stripe';
+import { buffer } from 'micro';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
-  // ✅ CORS Headers
+  // ✅ CORS headers
   res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // ✅ Handle preflight
+  // ✅ Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': 'https://www.luckyfaraonul.com',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Credentials': 'true',
-      'Content-Length': '0'
-    });
-    return res.end();
+    return res.status(204).end();
   }
 
-  // ❌ Only allow POST
+  // ❌ Block other methods
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // ✅ Parse input
+  // ✅ Read raw body and parse
+  let body;
+  try {
+    const rawBody = await buffer(req);
+    body = JSON.parse(rawBody.toString());
+  } catch (err) {
+    console.error("❌ Body parse error:", err.message);
+    return res.status(400).json({ error: 'Invalid JSON body' });
+  }
+
   const {
     name, phone, email, address,
     country, productId, productName,
     qty, stripePriceId
-  } = req.body;
+  } = body;
 
-  console.log("🔽 BODY primit de la Wix:", req.body);
+  console.log("🔽 BODY primit de la Wix:", body);
   console.log("🧾 stripePriceId =", stripePriceId);
 
   if (!stripePriceId || !qty || !email) {
@@ -73,6 +83,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Stripe error: " + err.message });
   }
 }
+
 
 
 
