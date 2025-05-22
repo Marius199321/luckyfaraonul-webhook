@@ -51,7 +51,7 @@ export default async function handler(req, res) {
 
   // 🔹 1. Salvează comanda
   try {
-    await fetch(`${process.env.WIX_BACKEND_URL}/_functions/post_savePurchase`, {
+    const saveRes = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/post_savePurchase`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,6 +67,8 @@ export default async function handler(req, res) {
         createdTime: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
       })
     });
+    const saveJson = await saveRes.json();
+    if (!saveJson.success) throw new Error(saveJson.error || 'savePurchase failed');
     console.log("✅ Comanda salvată în TicketsPurchases");
   } catch (err) {
     console.error("❌ Eroare la salvarea comenzii:", err.message);
@@ -75,19 +77,19 @@ export default async function handler(req, res) {
   // 🔹 2. Preia detalii giveaway
   let giveawayDetails = {};
   try {
-    const res = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/get_getGiveawayDetails?productId=${productId}`, {
+    const detailsRes = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/get_getGiveawayDetails?productId=${productId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
       }
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`GET giveawayDetails: ${res.status} - ${errText}`);
+    if (!detailsRes.ok) {
+      const errText = await detailsRes.text();
+      throw new Error(`GET giveawayDetails: ${detailsRes.status} - ${errText}`);
     }
 
-    giveawayDetails = await res.json();
+    giveawayDetails = await detailsRes.json();
     if (!giveawayDetails || typeof giveawayDetails !== 'object') {
       throw new Error("❌ Răspunsul de la getGiveawayDetails este gol sau invalid.");
     }
@@ -136,7 +138,7 @@ export default async function handler(req, res) {
   });
 
   try {
-    await fetch(`${process.env.WIX_BACKEND_URL}/_functions/post_saveTickets`, {
+    const ticketRes = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/post_saveTickets`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -144,6 +146,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(ticketsPayload)
     });
+    const ticketJson = await ticketRes.json();
+    if (!ticketJson.success) throw new Error(ticketJson.error || 'saveTickets failed');
     console.log(`✅ ${ticketsPayload.length} bilete salvate`);
   } catch (err) {
     console.error("❌ Eroare salvare bilete:", err.message);
@@ -171,6 +175,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
 
