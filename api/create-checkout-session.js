@@ -55,8 +55,8 @@ export default async function handler(req, res) {
         productName,
         qty
       },
-      success_url: `${process.env.DOMAIN}/success`,
-      cancel_url: `${process.env.DOMAIN}/cancel`
+      success_url: `${process.env.FRONTEND_URL}/success`,
+      cancel_url: `${process.env.FRONTEND_URL}/cancel`
     });
 
     return res.status(200).json({ sessionUrl: session.url });
@@ -71,6 +71,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
 
 
