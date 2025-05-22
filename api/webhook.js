@@ -56,13 +56,13 @@ export default async function handler(req, res) {
 
       console.log('✅ Plată confirmată. Începem generarea datelor.');
 
+      // ✅ AICI AM MODIFICAT ENDPOINTUL
       const usedTicketsRes = await axios.get(
-        `https://www.luckyfaraonul.com/_functions/getUsedTickets?productId=${productId}`,
+        `https://www.luckyfaraonul.com/_functions/get_getUsedTickets?productId=${productId}`,
         { headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` } }
       );
 
       const usedTickets = usedTicketsRes.data.usedTickets || [];
-
       const tickets = generateTickets(qty, usedTickets);
       const instantWinners = await instantWinChecker(tickets, productId);
 
@@ -98,7 +98,6 @@ export default async function handler(req, res) {
       );
 
       console.log('✅ Comandă și bilete salvate cu succes în Wix.');
-
       return res.status(200).json({ received: true });
 
     } catch (error) {
