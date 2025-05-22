@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.zoho.eu', // ← important pentru conturi europene!
+  host: 'smtp.zoho.eu',
   port: 465,
   secure: true,
   auth: {
@@ -25,10 +25,15 @@ export async function sendZohoEmail({
 }) {
   try {
     const subject = `🎟️ Confirmare comandă #${orderNumber} - ${productName}`;
+
     const instantWinText = instantWinners.length
       ? instantWinners.map(w => `• Bilet ${w.ticketNumber}: ${w.prize}`).join('<br>')
       : '–';
-    const ticketList = tickets.sort((a, b) => a - b).join(', ');
+
+    const ticketList = tickets
+      .map(n => Number(n))
+      .sort((a, b) => a - b)
+      .join(', ');
 
     const html = `
       <h2>Mulțumim pentru participare, ${name}!</h2>

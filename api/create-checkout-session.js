@@ -32,13 +32,16 @@ export default async function handler(req, res) {
     qty, stripePriceId
   } = req.body;
 
+  console.log("🔽 BODY primit de la Wix:", req.body);
+  console.log("🧾 stripePriceId =", stripePriceId);
+
   if (!stripePriceId || !qty || !email) {
     return res.status(400).json({ error: "Missing required fields: stripePriceId, qty, or email." });
   }
 
-  console.log("🎯 Creating Stripe session with:", {
-    name, phone, email, address, country, productId, productName, qty, stripePriceId
-  });
+  if (!stripePriceId.startsWith("price_")) {
+    return res.status(400).json({ error: "Invalid Stripe Price ID format." });
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -62,6 +65,7 @@ export default async function handler(req, res) {
       cancel_url: process.env.CANCEL_URL || 'https://www.luckyfaraonul.com/cancel'
     });
 
+    console.log("✅ Stripe session created:", session.id);
     return res.status(200).json({ id: session.id, sessionUrl: session.url });
 
   } catch (err) {

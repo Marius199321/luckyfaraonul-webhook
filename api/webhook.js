@@ -15,8 +15,12 @@ export const config = {
 
 export default async function handler(req, res) {
   const sig = req.headers['stripe-signature'];
-  let event;
+  if (!sig) {
+    console.error("❌ Stripe signature missing");
+    return res.status(400).send("Missing Stripe Signature");
+  }
 
+  let event;
   try {
     const buf = await buffer(req);
     event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
@@ -37,7 +41,13 @@ export default async function handler(req, res) {
 
   const { name, phone, email, address, country, productId, productName } = metadata;
 
-  console.log("🎯 Stripe session completă pentru", email);
+  if (!email || !productId || !qty) {
+    console.error("❌ Webhook: Missing required metadata fields");
+    return res.status(400).json({ error: "Missing metadata in Stripe session" });
+  }
+
+  console.log("🎯 [Stripe] Payment succeeded for:", email);
+  console.log("🧾 Metadata:", metadata);
 
   // 🔹 1. Salvează comanda
   try {
@@ -62,7 +72,7 @@ export default async function handler(req, res) {
     console.error("❌ Eroare la salvarea comenzii:", err.message);
   }
 
-  // 🔹 2. Preia detalii giveaway (actualizat)
+  // 🔹 2. Preia detalii giveaway
   let giveawayDetails = {};
   try {
     const res = await fetch(`${process.env.WIX_BACKEND_URL}/_functions/get_getGiveawayDetails?productId=${productId}`, {
@@ -78,13 +88,11 @@ export default async function handler(req, res) {
     }
 
     giveawayDetails = await res.json();
-
     if (!giveawayDetails || typeof giveawayDetails !== 'object') {
       throw new Error("❌ Răspunsul de la getGiveawayDetails este gol sau invalid.");
     }
 
     console.log("🎁 Detalii giveaway:", giveawayDetails);
-
   } catch (err) {
     console.error("❌ Eroare la preluare giveaway:", err.message);
     return res.status(500).json({ error: "Eroare la preluarea detaliilor produsului" });
@@ -163,6 +171,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
 
 

@@ -28,8 +28,15 @@ export async function generateTickets(productId, qty, maxTickets = 50000) {
       }
 
       const data = await res.json();
-      const batch = data.usedTickets || [];
-      batch.forEach(t => usedTickets.add(Number(t))); // Convertim în numere
+      const batch = Array.isArray(data.usedTickets) ? data.usedTickets : [];
+
+      batch.forEach(t => {
+        const num = Number(t);
+        if (!isNaN(num)) {
+          usedTickets.add(num);
+        }
+      });
+
       skip += pageSize;
       hasMore = batch.length === pageSize;
     }
@@ -39,7 +46,7 @@ export async function generateTickets(productId, qty, maxTickets = 50000) {
       throw new Error(`❌ Nu sunt destule bilete disponibile. Există ${usedTickets.size}, cerute ${qty}, max ${maxTickets}`);
     }
 
-    // 🎲 3. Generează bilete unice, fail-safe
+    // 🎲 3. Generează bilete unice
     const newTickets = new Set();
     let attempts = 0;
     const maxAttempts = qty * 10;
@@ -57,13 +64,14 @@ export async function generateTickets(productId, qty, maxTickets = 50000) {
     }
 
     console.log(`✅ ${newTickets.size} bilete generate`);
-    return Array.from(newTickets); // sau `.map(n => n.toString())` dacă ai nevoie de stringuri
+    return Array.from(newTickets).map(n => n.toString()); // returnăm stringuri
 
   } catch (err) {
     console.error("❌ Eroare la generarea biletelor:", err.message);
     throw new Error("Eroare la generateTickets: " + err.message);
   }
 }
+
 
 
 
