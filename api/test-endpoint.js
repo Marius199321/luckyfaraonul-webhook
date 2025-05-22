@@ -1,16 +1,28 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// test-endpoint.js
+async function testCreateCheckoutSession() {
+  const response = await fetch("https://luckyfaraonul-webhook.vercel.app/api/create-checkout-session", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Origin": "https://www.luckyfaraonul.com"
+    },
+    body: JSON.stringify({
+      name: "Test User",
+      phone: "+40000000000",
+      email: "test@example.com",
+      address: "Test Address 123",
+      country: "UK",
+      productId: "test-product-id",
+      productName: "Test Product",
+      qty: 1,
+      stripePriceId: "price_test123" // asigură-te că e unul valid
+    })
+  });
 
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  console.log("✅ Request primit de la Wix:", req.body);
-  return res.status(200).json({ message: 'POST primit cu succes', body: req.body });
+  const data = await response.json();
+  console.log("✅ Rezultat test:", data);
 }
+
+testCreateCheckoutSession().catch(err => {
+  console.error("❌ Eroare în test:", err);
+});
