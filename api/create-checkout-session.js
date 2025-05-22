@@ -1,32 +1,37 @@
 import Stripe from 'stripe';
-
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
-  // 🔐 CORS Headers
+  // ✅ CORS Headers
   res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // ✅ OPTIONS preflight
+  // ✅ Handle preflight
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': 'https://www.luckyfaraonul.com',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true',
+      'Content-Length': '0'
+    });
+    return res.end();
   }
 
-  // ❌ Block non-POST methods
+  // ❌ Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // ✅ Parse body
+  // ✅ Parse input
   const {
     name, phone, email, address,
     country, productId, productName,
     qty, stripePriceId
   } = req.body;
 
-  // ❗ Validate fields
   if (!stripePriceId || !qty || !email) {
     return res.status(400).json({ error: "Missing required fields: stripePriceId, qty, or email." });
   }
@@ -64,6 +69,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Stripe error: " + err.message });
   }
 }
+
 
 
 
