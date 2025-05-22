@@ -30,3 +30,4 @@ export default function instantWinChecker(tickets, productId) {
       }
       return [];
     });
+}
