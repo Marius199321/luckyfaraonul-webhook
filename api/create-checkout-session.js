@@ -2,32 +2,33 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
-  // ✅ OPTIONS Preflight fix
+  // ✅ Handle preflight CORS OPTIONS request
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    return res.status(204).end(); // 🔥 corect pentru Vercel (fără res.end())
+    res.setHeader('Access-Control-Max-Age', '86400'); // cache preflight
+    return res.status(200).end(); // ⚠️ folosește 200, nu 204 pe Vercel
   }
 
-  // ✅ CORS headers pentru POST
+  // ✅ CORS Headers for POST
   res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // ❌ Doar POST e permis
+  // ❌ Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // ✅ Extract fields
   const {
     name, phone, email, address,
     country, productId, productName,
     qty, stripePriceId
   } = req.body;
 
-  console.log("🧾 stripePriceId:", stripePriceId);
+  console.log("📦 Payload primit:", req.body);
 
   if (!stripePriceId || !qty || !email) {
     return res.status(400).json({ error: "Missing required fields: stripePriceId, qty, or email." });
@@ -59,6 +60,7 @@ export default async function handler(req, res) {
       cancel_url: process.env.CANCEL_URL || 'https://www.luckyfaraonul.com/cancel'
     });
 
+    console.log("✅ Stripe session creat:", session.id);
     return res.status(200).json({ id: session.id, sessionUrl: session.url });
 
   } catch (err) {
