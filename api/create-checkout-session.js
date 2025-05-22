@@ -1,33 +1,23 @@
 import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ Important: define config pentru a permite OPTIONS în Vercel
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
-
 export default async function handler(req, res) {
-  console.log("👉 Method:", req.method);
-
+  // 🔁 CORS universal pentru OPTIONS
   if (req.method === 'OPTIONS') {
-    console.log("🟡 OPTIONS preflight hit");
-    res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '86400');
     return res.status(204).end();
   }
 
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.luckyfaraonul.com');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
+  // 🔒 Acceptăm doar POST real
   if (req.method !== 'POST') {
-    console.log("❌ Method not allowed:", req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // ✅ CORS pentru POST
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
   const {
     name, phone, email, address,
@@ -35,14 +25,8 @@ export default async function handler(req, res) {
     qty, stripePriceId
   } = req.body;
 
-  console.log("🧾 stripePriceId:", stripePriceId);
-
   if (!stripePriceId || !qty || !email) {
-    return res.status(400).json({ error: "Missing required fields: stripePriceId, qty, or email." });
-  }
-
-  if (!stripePriceId.startsWith("price_")) {
-    return res.status(400).json({ error: "Invalid Stripe Price ID format." });
+    return res.status(400).json({ error: "Missing required fields." });
   }
 
   try {
@@ -50,30 +34,23 @@ export default async function handler(req, res) {
       payment_method_types: ['card'],
       line_items: [{
         price: stripePriceId,
-        quantity: Number(qty)
+        quantity: Number(qty),
       }],
       mode: 'payment',
       metadata: {
-        name,
-        phone,
-        email,
-        address,
-        country,
-        productId,
-        productName,
-        qty
+        name, phone, email, address, country, productId, productName, qty
       },
       success_url: process.env.SUCCESS_URL || 'https://www.luckyfaraonul.com/success',
-      cancel_url: process.env.CANCEL_URL || 'https://www.luckyfaraonul.com/cancel'
+      cancel_url: process.env.CANCEL_URL || 'https://www.luckyfaraonul.com/cancel',
     });
 
-    return res.status(200).json({ id: session.id, sessionUrl: session.url });
-
+    return res.status(200).json({ sessionUrl: session.url });
   } catch (err) {
-    console.error("❌ Stripe session error:", err.message);
+    console.error("❌ Stripe error:", err.message);
     return res.status(500).json({ error: "Stripe error: " + err.message });
   }
 }
+
 
 
 
