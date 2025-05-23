@@ -1,8 +1,7 @@
-// api/getUsedTickets.js
 import axios from 'axios';
 
 export default async function handler(req, res) {
-  console.log("📥 [GET /api/getUsedTickets] Cerere primită:", req.query);
+  console.log("📥 [GET /api/getUsedTickets] Cerere primită:", req.method, req.query);
 
   if (req.method !== 'GET') {
     console.warn("⚠️ [GET /api/getUsedTickets] Method Not Allowed:", req.method);
@@ -18,13 +17,14 @@ export default async function handler(req, res) {
 
   try {
     console.log("🌐 [GET /api/getUsedTickets] Trimit request la Wix...", {
+      endpoint: "getUsedTickets",
       productId,
       skip,
       limit
     });
 
     const response = await axios.get(
-      `https://www.luckyfaraonul.com/_functions/get_getUsedTickets`,
+      `https://www.luckyfaraonul.com/_functions/getUsedTickets`,  // <- verifică să fie corect
       {
         params: { productId, skip, limit },
         headers: {
@@ -54,4 +54,5 @@ export default async function handler(req, res) {
     });
   }
 }
+
 

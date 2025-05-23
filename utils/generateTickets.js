@@ -1,6 +1,12 @@
-// utils/generateTickets.js
-
 export default function generateTickets(qty, usedTickets = [], maxTickets = 80000) {
+  console.log(`[generateTickets] Cerute: ${qty}, Bilete ocupate: ${usedTickets.length}, Maxim: ${maxTickets}`);
+
+  if (qty > maxTickets - usedTickets.length) {
+    const msg = `[generateTickets] Nu există suficiente bilete libere! Cerute: ${qty}, Libere: ${maxTickets - usedTickets.length}`;
+    console.error(msg);
+    throw new Error(msg);
+  }
+
   const generated = new Set(usedTickets.map(Number));
   const tickets = [];
 
@@ -12,6 +18,7 @@ export default function generateTickets(qty, usedTickets = [], maxTickets = 8000
     }
   }
 
+  console.log(`[generateTickets] Bilete generate:`, tickets.map(t => t.ticketNumber));
   return tickets;
 }
 
