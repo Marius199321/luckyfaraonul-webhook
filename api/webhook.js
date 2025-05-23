@@ -56,12 +56,18 @@ export default async function handler(req, res) {
 
       console.log('✅ Plată confirmată. Începem generarea datelor.');
 
+      // 🔁 APEL CORECTAT: get_getUsedTickets
       const usedTicketsRes = await axios.get(
-        `https://www.luckyfaraonul.com/_functions/getUsedTickets?productId=${productId}`,
-        { headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` } }
+        `https://www.luckyfaraonul.com/_functions/get_getUsedTickets`,
+        {
+          params: { productId },
+          headers: {
+            Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+          }
+        }
       );
 
-      const usedTickets = usedTicketsRes.data.usedTickets || [];
+      const usedTickets = usedTicketsRes.data.tickets || [];
       const tickets = generateTickets(qty, usedTickets);
       const instantWinners = await instantWinChecker(tickets, productId);
 
@@ -107,6 +113,7 @@ export default async function handler(req, res) {
 
   res.status(200).end();
 }
+
 
 
 
