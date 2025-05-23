@@ -56,7 +56,6 @@ export default async function handler(req, res) {
 
       console.log('✅ Plată confirmată. Începem generarea datelor.');
 
-      // 🔁 Actualizat endpointul corect:
       const usedTicketsRes = await axios.get(
         `https://www.luckyfaraonul.com/_functions/getUsedTickets?productId=${productId}`,
         { headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` } }
@@ -71,7 +70,7 @@ export default async function handler(req, res) {
         {
           qty,
           productId,
-          productName: '', // completat la nevoie
+          productName: '',
           amount: amount_total / 100,
           email,
           name,
