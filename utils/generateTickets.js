@@ -1,3 +1,4 @@
+// utils/generateTickets.js
 export default function generateTickets(qty, usedTickets = [], maxTickets = 80000) {
   console.log(`[generateTickets] Cerute: ${qty}, Bilete ocupate: ${usedTickets.length}, Maxim: ${maxTickets}`);
 
@@ -14,12 +15,12 @@ export default function generateTickets(qty, usedTickets = [], maxTickets = 8000
     const random = Math.floor(Math.random() * maxTickets) + 1;
     if (!generated.has(random)) {
       generated.add(random);
-      tickets.push({ ticketNumber: random });
+      tickets.push(random);   // AICI trebuie să fie doar numărul, nu obiect
     }
   }
 
-  console.log(`[generateTickets] Bilete generate:`, tickets.map(t => t.ticketNumber));
-  return tickets;
+  console.log(`[generateTickets] Bilete generate:`, tickets);
+  return tickets; // [12, 10021, ...]
 }
 
 

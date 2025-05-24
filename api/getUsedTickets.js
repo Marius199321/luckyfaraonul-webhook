@@ -1,58 +1,28 @@
+// api/getUsedTickets.js
 import axios from 'axios';
 
 export default async function handler(req, res) {
-  console.log("📥 [GET /api/getUsedTickets] Cerere primită:", req.method, req.query);
-
-  if (req.method !== 'GET') {
-    console.warn("⚠️ [GET /api/getUsedTickets] Method Not Allowed:", req.method);
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  const { productId, skip = 0, limit = 1000 } = req.query;
-
-  if (!productId) {
-    console.warn("⚠️ [GET /api/getUsedTickets] Missing productId");
-    return res.status(400).json({ error: 'Missing productId' });
-  }
+  const { productId } = req.query;
+  if (!productId) return res.status(400).json({ error: "Missing productId" });
 
   try {
-    console.log("🌐 [GET /api/getUsedTickets] Trimit request la Wix...", {
-      endpoint: "getUsedTickets",
-      productId,
-      skip,
-      limit
-    });
-
-    const response = await axios.get(
-      `https://www.luckyfaraonul.com/_functions/getUsedTickets`,  // <- verifică să fie corect
-      {
-        params: { productId, skip, limit },
-        headers: {
-          Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
-        }
+    // Folosește endpointul NOU din Wix
+    const response = await axios.get('https://www.luckyfaraonul.com/_functions/get_getUsedTickets', {
+      params: { productId },
+      headers: {
+        Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
       }
-    );
+    });
 
-    const data = response.data;
-    console.log("✅ [GET /api/getUsedTickets] Răspuns primit:", data);
-
-    if (!Array.isArray(data.usedTickets)) {
-      console.error("❌ [GET /api/getUsedTickets] Răspuns invalid:", data);
-      return res.status(502).json({ error: 'Invalid response from Wix' });
+    if (response.data && response.data.usedTickets) {
+      return res.status(200).json({ usedTickets: response.data.usedTickets });
     }
-
-    return res.status(200).json({
-      usedTickets: data.usedTickets,
-      total: data.usedTickets.length
-    });
-
+    return res.status(404).json({ error: response.data.error || 'No tickets found' });
   } catch (err) {
-    console.error("❌ [GET /api/getUsedTickets] Eroare generală:", err.message, err?.response?.data);
-    return res.status(500).json({
-      error: 'Internal server error',
-      details: err?.response?.data || err.message
-    });
+    console.error('Eroare getUsedTickets:', err.response?.data || err.message);
+    return res.status(500).json({ error: 'getUsedTickets error', details: err.response?.data || err.message });
   }
 }
+
 
 

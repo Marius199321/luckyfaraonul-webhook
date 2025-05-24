@@ -12,16 +12,12 @@ export default async function instantWinChecker(tickets, productId) {
       console.warn("[instantWinChecker] instantWinMap invalid:", winMap);
     }
 
-    for (const ticket of tickets) {
-      const prize = winMap[ticket.ticketNumber];
+    for (const ticketNumber of tickets) {
+      // winMap are chei string, deci compară ca string:
+      const prize = winMap[String(ticketNumber)];
       if (prize) {
-        ticket.isInstantWin = true;
-        ticket.instantPrize = prize;
-        winners.push({ ticketNumber: ticket.ticketNumber, prize });
-        console.log(`[instantWinChecker] Bilet câștigător instant: #${ticket.ticketNumber}, premiu: ${prize}`);
-      } else {
-        ticket.isInstantWin = false;
-        ticket.instantPrize = null;
+        winners.push({ ticketNumber, prize });
+        console.log(`[instantWinChecker] Bilet câștigător instant: #${ticketNumber}, premiu: ${prize}`);
       }
     }
 
@@ -30,10 +26,7 @@ export default async function instantWinChecker(tickets, productId) {
 
   } catch (err) {
     console.error("❌ [instantWinChecker] Eroare la verificarea Instant Win:", err?.message || err);
-    for (const ticket of tickets) {
-      ticket.isInstantWin = false;
-      ticket.instantPrize = null;
-    }
     return [];
   }
 }
+
