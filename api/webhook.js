@@ -8,13 +8,14 @@ import instantWinChecker from '../utils/instantWinChecker.js';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-export const config = {
-  api: { bodyParser: false },
-};
+export const config = { api: { bodyParser: false } };
 
 export default async function handler(req, res) {
+  console.log("[Webhook] New request:", req.method, req.url);
+
   if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
+    console.warn("[Webhook] Method Not Allowed:", req.method);
+    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
   }
 
   const sig = req.headers['stripe-signature'];
@@ -26,14 +27,14 @@ export default async function handler(req, res) {
     console.log("✅ Webhook signature verified.");
   } catch (err) {
     console.error('❌ Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).json({ success: false, error: `Webhook Error: ${err.message}` });
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     if (session.payment_status !== 'paid') {
       console.log('Payment not completed, skipping.');
-      return res.status(200).end();
+      return res.status(200).json({ success: false, error: 'Payment not completed' });
     }
 
     try {
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
         console.log(`[getUsedTickets] Bilete deja folosite: ${usedTickets.length}`);
       } catch (err) {
         console.error("[getUsedTickets] Eroare:", err?.response?.data || err.message, "ProductId:", productId);
-        return res.status(500).json({ error: "Eroare getUsedTickets", details: err.message });
+        return res.status(500).json({ success: false, error: "Eroare getUsedTickets", details: err.message });
       }
 
       // STEP 5: Generează bilete UNICE random
@@ -75,7 +76,7 @@ export default async function handler(req, res) {
         console.log(`[generateTickets] Bilete generate:`, rawTickets);
       } catch (err) {
         console.error("[generateTickets] Eroare:", err.message);
-        return res.status(500).json({ error: "Eroare generateTickets", details: err.message });
+        return res.status(500).json({ success: false, error: "Eroare generateTickets", details: err.message });
       }
 
       // STEP 6: InstantWin (prize map)
@@ -115,7 +116,7 @@ export default async function handler(req, res) {
         console.log(`[post_saveTickets] Bilete salvate:`, resp.data);
       } catch (err) {
         console.error("[post_saveTickets] Eroare:", err?.response?.data || err.message);
-        return res.status(500).json({ error: "Eroare post_saveTickets", details: err.message });
+        return res.status(500).json({ success: false, error: "Eroare post_saveTickets", details: err.message });
       }
 
       // STEP 9: Salvează comanda în TicketsPurchases (FĂRĂ array de bilete)
@@ -146,22 +147,23 @@ export default async function handler(req, res) {
         console.log("[post_savePurchase] Comandă salvată:", resp.data);
       } catch (err) {
         console.error("[post_savePurchase] Eroare:", err?.response?.data || err.message);
-        return res.status(500).json({ error: "Eroare post_savePurchase", details: err.message });
+        return res.status(500).json({ success: false, error: "Eroare post_savePurchase", details: err.message });
       }
 
       // TOTUL OK!
       console.log("[Webhook] Flow complet salvat cu succes pentru orderNumber:", orderNumber);
-      return res.status(200).json({ received: true });
+      return res.status(200).json({ success: true, received: true, orderNumber });
 
     } catch (error) {
       console.error("[Webhook] Eroare generală în webhook:", error?.message || error);
-      return res.status(500).send("Internal Server Error");
+      return res.status(500).json({ success: false, error: "Internal Server Error", details: error?.message || error });
     }
   }
 
   // Pentru alte tipuri de evenimente
-  res.status(200).end();
+  res.status(200).json({ success: true, info: "Event type not handled (noop)" });
 }
+
 
 
 

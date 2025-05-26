@@ -3,7 +3,11 @@ import axios from 'axios';
 
 export default async function handler(req, res) {
   const { productId } = req.query;
-  if (!productId) return res.status(400).json({ error: "Missing productId" });
+
+  if (!productId) {
+    console.error("[getUsedTickets] Missing productId!");
+    return res.status(400).json({ success: false, error: "Missing productId" });
+  }
 
   try {
     // Folosește endpointul NOU din Wix
@@ -14,15 +18,22 @@ export default async function handler(req, res) {
       }
     });
 
-    if (response.data && response.data.usedTickets) {
-      return res.status(200).json({ usedTickets: response.data.usedTickets });
+    if (response.data && Array.isArray(response.data.usedTickets)) {
+      return res.status(200).json({ success: true, usedTickets: response.data.usedTickets });
     }
-    return res.status(404).json({ error: response.data.error || 'No tickets found' });
+    console.error("[getUsedTickets] No tickets found. Response:", response.data);
+    return res.status(404).json({ success: false, error: response.data.error || 'No tickets found' });
+
   } catch (err) {
-    console.error('Eroare getUsedTickets:', err.response?.data || err.message);
-    return res.status(500).json({ error: 'getUsedTickets error', details: err.response?.data || err.message });
+    console.error('[getUsedTickets] Eroare:', err.response?.data || err.message);
+    return res.status(500).json({
+      success: false,
+      error: 'getUsedTickets error',
+      details: err.response?.data || err.message
+    });
   }
 }
+
 
 
 
