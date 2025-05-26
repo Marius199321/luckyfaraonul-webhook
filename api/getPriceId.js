@@ -18,10 +18,9 @@ export default async function handler(req, res) {
 
     console.log("[getPriceId] Răspuns brut de la Wix:", response.data);
 
-    // Acoperă și cazurile când success=true este deja inclus
+    // Acceptă și cazurile când success=true este deja inclus
     if (response.data && (response.data.stripePriceId || response.data.success)) {
       if (response.data.success === false) {
-        // Eroare semnalizată de Wix
         return res.status(404).json({
           success: false,
           error: response.data.error || 'stripePriceId not found'
@@ -36,11 +35,10 @@ export default async function handler(req, res) {
     console.error("[getPriceId] stripePriceId not found! Response:", response.data);
     return res.status(404).json({
       success: false,
-      error: response.data?.error || 'stripePriceId not found'
+      error: response.data.error || 'stripePriceId not found'
     });
-
   } catch (err) {
-    console.error('[getPriceId] Eroare:', err.response?.data || err.message);
+    console.error("[getPriceId] Eroare:", err.response?.data || err.message);
     return res.status(500).json({
       success: false,
       error: 'getPriceId Vercel error',
@@ -48,6 +46,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
 
 
