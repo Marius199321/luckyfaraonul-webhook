@@ -1,56 +1,61 @@
 import axios from 'axios';
 
 export default async function handler(req, res) {
-  // Acceptă și POST și GET (pentru testare directă în browser)
-  const productId = req.method === 'POST'
-    ? req.body.productId
-    : req.query.productId;
+  // Acceptă și POST și GET pentru debug/test
+  let productId = "";
+  if (req.method === "POST") {
+    productId = req.body?.productId;
+  } else {
+    productId = req.query?.productId;
+  }
 
   if (!productId) {
     console.error("[getPriceId] Missing productId!");
-    return res.status(400).json({ success: false, error: 'Missing productId' });
+    return res.status(400).json({ success: false, error: "Missing productId" });
   }
 
   try {
-    // Cheamă endpointul POST din Wix
-    const wixRes = await axios.post(
+    // Chemare POST către Wix
+    const wixResponse = await axios.post(
       'https://www.luckyfaraonul.com/_functions/getPriceId',
       { productId },
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
-        }
+          Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`,
+        },
+        timeout: 12000 // 12 secunde timeout pentru debug
       }
     );
 
-    console.log("[getPriceId] Răspuns Wix:", wixRes.data);
+    console.log("[getPriceId] Wix response:", wixResponse.data);
 
-    if (wixRes.data && wixRes.data.success && wixRes.data.stripePriceId) {
+    if (wixResponse.data && wixResponse.data.success && wixResponse.data.stripePriceId) {
       return res.status(200).json({
         success: true,
-        stripePriceId: wixRes.data.stripePriceId
+        stripePriceId: wixResponse.data.stripePriceId,
       });
     }
 
-    // Dacă există răspuns dar nu e success sau nu are stripePriceId
+    // Returnează direct eroarea din Wix dacă există, cu 404 dacă nu-i găsit stripePriceId
     return res.status(404).json({
       success: false,
-      error: wixRes.data?.error || 'stripePriceId not found'
+      error: wixResponse.data?.error || "stripePriceId not found"
     });
 
   } catch (err) {
-    // Log detaliat pentru debugging
+    // Detalii pentru debug real
     const details = err.response?.data || err.message || err;
     console.error("[getPriceId] Eroare catch:", details);
 
     return res.status(500).json({
       success: false,
-      error: 'getPriceId Vercel error',
+      error: "getPriceId Vercel error",
       details
     });
   }
 }
+
 
 
 

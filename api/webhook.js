@@ -62,11 +62,13 @@ export default async function handler(req, res) {
           params: { productId },
           headers: {
             Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
-          }
+          },
+          timeout: 15000
         }
       );
       usedTickets = usedRes.data?.usedTickets || [];
     } catch (err) {
+      console.error("[Webhook] Eroare getUsedTickets:", err?.response?.data || err.message);
       return res.status(500).json({ success: false, error: "Eroare getUsedTickets", details: err.message });
     }
 
@@ -75,6 +77,7 @@ export default async function handler(req, res) {
     try {
       rawTickets = generateTickets(qty, usedTickets);
     } catch (err) {
+      console.error("[Webhook] Eroare generateTickets:", err.message);
       return res.status(500).json({ success: false, error: "Eroare generateTickets", details: err.message });
     }
 
@@ -83,8 +86,8 @@ export default async function handler(req, res) {
     try {
       instantWinners = await instantWinChecker(rawTickets, productId);
     } catch (err) {
+      console.warn("[Webhook] instantWinChecker Error:", err.message);
       // Nu bloca flow-ul, doar log
-      console.warn("[instantWinChecker] Error:", err.message);
     }
 
     // 4. Format tickets array
@@ -108,10 +111,12 @@ export default async function handler(req, res) {
         'https://www.luckyfaraonul.com/_functions/post_saveTickets',
         tickets,
         {
-          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` }
+          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` },
+          timeout: 15000
         }
       );
     } catch (err) {
+      console.error("[Webhook] Eroare post_saveTickets:", err?.response?.data || err.message);
       return res.status(500).json({ success: false, error: "Eroare post_saveTickets", details: err.message });
     }
 
@@ -137,14 +142,17 @@ export default async function handler(req, res) {
         'https://www.luckyfaraonul.com/_functions/post_savePurchase',
         purchasePayload,
         {
-          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` }
+          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` },
+          timeout: 15000
         }
       );
     } catch (err) {
+      console.error("[Webhook] Eroare post_savePurchase:", err?.response?.data || err.message);
       return res.status(500).json({ success: false, error: "Eroare post_savePurchase", details: err.message });
     }
 
     // Succes!
+    console.log("[Webhook] Flow complet salvat cu succes pentru orderNumber:", orderNumber);
     return res.status(200).json({ success: true, received: true, orderNumber });
   } catch (error) {
     console.error("[Webhook] Fatal error:", error?.message || error);
