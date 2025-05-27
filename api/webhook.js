@@ -14,7 +14,6 @@ export default async function handler(req, res) {
   console.log("[Webhook] New request:", req.method, req.url);
 
   if (req.method !== 'POST') {
-    console.warn("[Webhook] Method Not Allowed:", req.method);
     return res.status(405).json({ success: false, error: 'Method Not Allowed' });
   }
 
@@ -30,139 +29,129 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: `Webhook Error: ${err.message}` });
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    if (session.payment_status !== 'paid') {
-      console.log('Payment not completed, skipping.');
-      return res.status(200).json({ success: false, error: 'Payment not completed' });
-    }
-
-    try {
-      // Extrage datele necesare
-      const qty = session.metadata?.qty ? Number(session.metadata.qty) : (session.amount_total / session.amount_subtotal); // fallback
-      const productId = session.client_reference_id || session.metadata?.productId;
-      const email = session.customer_email;
-      const name = session.metadata?.name || '';
-      const phone = session.metadata?.phone || '';
-      const address = session.metadata?.address || '';
-      const country = session.metadata?.country || '';
-      const productName = session.metadata?.productName || '';
-      const amount = session.amount_total / 100;
-      const orderNumber = generateOrderNumber();
-
-      // STEP 4: Ia biletele deja folosite
-      let usedTickets = [];
-      try {
-        const usedRes = await axios.get(
-          `https://www.luckyfaraonul.com/_functions/getUsedTickets`,
-          {
-            params: { productId },
-            headers: {
-              Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
-            }
-          }
-        );
-        usedTickets = usedRes.data?.usedTickets || [];
-        console.log(`[getUsedTickets] Bilete deja folosite: ${usedTickets.length}`);
-      } catch (err) {
-        console.error("[getUsedTickets] Eroare:", err?.response?.data || err.message, "ProductId:", productId);
-        return res.status(500).json({ success: false, error: "Eroare getUsedTickets", details: err.message });
-      }
-
-      // STEP 5: Generează bilete UNICE random
-      let rawTickets = [];
-      try {
-        rawTickets = generateTickets(qty, usedTickets);
-        console.log(`[generateTickets] Bilete generate:`, rawTickets);
-      } catch (err) {
-        console.error("[generateTickets] Eroare:", err.message);
-        return res.status(500).json({ success: false, error: "Eroare generateTickets", details: err.message });
-      }
-
-      // STEP 6: InstantWin (prize map)
-      let instantWinners = [];
-      try {
-        instantWinners = await instantWinChecker(rawTickets, productId);
-        console.log(`[instantWinChecker] Instant winners:`, instantWinners);
-      } catch (err) {
-        console.warn("[instantWinChecker] Eroare la instantWinChecker:", err.message);
-        // Nu bloca flow-ul dacă nu e instant win
-      }
-
-      // STEP 7: Pregătește array-ul de bilete pentru Tickets
-      const tickets = rawTickets.map(ticketNumber => {
-        const win = instantWinners.find(w => w.ticketNumber === ticketNumber);
-        return {
-          ticketNumber,
-          productId,
-          email,
-          name,
-          orderNumber,
-          isInstantWin: !!win,
-          instantPrize: win?.prize || null,
-          createdAt: new Date().toISOString()
-        };
-      });
-
-      // STEP 8: Salvează biletele în Tickets
-      try {
-        const resp = await axios.post(
-          'https://www.luckyfaraonul.com/_functions/post_saveTickets',
-          tickets,
-          {
-            headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` }
-          }
-        );
-        console.log(`[post_saveTickets] Bilete salvate:`, resp.data);
-      } catch (err) {
-        console.error("[post_saveTickets] Eroare:", err?.response?.data || err.message);
-        return res.status(500).json({ success: false, error: "Eroare post_saveTickets", details: err.message });
-      }
-
-      // STEP 9: Salvează comanda în TicketsPurchases (FĂRĂ array de bilete)
-      try {
-        const purchasePayload = {
-          qty,
-          productId,
-          productName,
-          amount,
-          email,
-          name,
-          phone,
-          address,
-          country,
-          orderNumber,
-          instantWinnersCount: instantWinners.length,
-          createdDate: new Date().toLocaleDateString('en-GB'),
-          createdTime: new Date().toLocaleTimeString('en-GB')
-        };
-
-        const resp = await axios.post(
-          'https://www.luckyfaraonul.com/_functions/post_savePurchase',
-          purchasePayload,
-          {
-            headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` }
-          }
-        );
-        console.log("[post_savePurchase] Comandă salvată:", resp.data);
-      } catch (err) {
-        console.error("[post_savePurchase] Eroare:", err?.response?.data || err.message);
-        return res.status(500).json({ success: false, error: "Eroare post_savePurchase", details: err.message });
-      }
-
-      // TOTUL OK!
-      console.log("[Webhook] Flow complet salvat cu succes pentru orderNumber:", orderNumber);
-      return res.status(200).json({ success: true, received: true, orderNumber });
-
-    } catch (error) {
-      console.error("[Webhook] Eroare generală în webhook:", error?.message || error);
-      return res.status(500).json({ success: false, error: "Internal Server Error", details: error?.message || error });
-    }
+  // Acceptă doar eventul corect
+  if (event.type !== 'checkout.session.completed') {
+    console.log('[Webhook] Ignorat event:', event.type);
+    return res.status(200).json({ success: true, info: "Event type not handled (noop)" });
   }
 
-  // Pentru alte tipuri de evenimente
-  res.status(200).json({ success: true, info: "Event type not handled (noop)" });
+  const session = event.data.object;
+  if (session.payment_status !== 'paid') {
+    return res.status(200).json({ success: false, error: 'Payment not completed' });
+  }
+
+  try {
+    // Date relevante din sesiune
+    const qty = session.metadata?.qty ? Number(session.metadata.qty) : 1;
+    const productId = session.client_reference_id || session.metadata?.productId;
+    const email = session.customer_email;
+    const name = session.metadata?.name || '';
+    const phone = session.metadata?.phone || '';
+    const address = session.metadata?.address || '';
+    const country = session.metadata?.country || '';
+    const productName = session.metadata?.productName || '';
+    const amount = session.amount_total / 100;
+    const orderNumber = generateOrderNumber();
+
+    // 1. Get used tickets
+    let usedTickets = [];
+    try {
+      const usedRes = await axios.get(
+        'https://www.luckyfaraonul.com/_functions/getUsedTickets',
+        {
+          params: { productId },
+          headers: {
+            Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+          }
+        }
+      );
+      usedTickets = usedRes.data?.usedTickets || [];
+    } catch (err) {
+      return res.status(500).json({ success: false, error: "Eroare getUsedTickets", details: err.message });
+    }
+
+    // 2. Generate tickets
+    let rawTickets = [];
+    try {
+      rawTickets = generateTickets(qty, usedTickets);
+    } catch (err) {
+      return res.status(500).json({ success: false, error: "Eroare generateTickets", details: err.message });
+    }
+
+    // 3. Instant Win check
+    let instantWinners = [];
+    try {
+      instantWinners = await instantWinChecker(rawTickets, productId);
+    } catch (err) {
+      // Nu bloca flow-ul, doar log
+      console.warn("[instantWinChecker] Error:", err.message);
+    }
+
+    // 4. Format tickets array
+    const tickets = rawTickets.map(ticketNumber => {
+      const win = instantWinners.find(w => w.ticketNumber === ticketNumber);
+      return {
+        ticketNumber,
+        productId,
+        email,
+        name,
+        orderNumber,
+        isInstantWin: !!win,
+        instantPrize: win?.prize || null,
+        createdAt: new Date().toISOString()
+      };
+    });
+
+    // 5. Save tickets
+    try {
+      await axios.post(
+        'https://www.luckyfaraonul.com/_functions/post_saveTickets',
+        tickets,
+        {
+          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` }
+        }
+      );
+    } catch (err) {
+      return res.status(500).json({ success: false, error: "Eroare post_saveTickets", details: err.message });
+    }
+
+    // 6. Save purchase (no tickets array)
+    try {
+      const purchasePayload = {
+        qty,
+        productId,
+        productName,
+        amount,
+        email,
+        name,
+        phone,
+        address,
+        country,
+        orderNumber,
+        instantWinnersCount: instantWinners.length,
+        createdDate: new Date().toLocaleDateString('en-GB'),
+        createdTime: new Date().toLocaleTimeString('en-GB')
+      };
+
+      await axios.post(
+        'https://www.luckyfaraonul.com/_functions/post_savePurchase',
+        purchasePayload,
+        {
+          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` }
+        }
+      );
+    } catch (err) {
+      return res.status(500).json({ success: false, error: "Eroare post_savePurchase", details: err.message });
+    }
+
+    // Succes!
+    return res.status(200).json({ success: true, received: true, orderNumber });
+  } catch (error) {
+    console.error("[Webhook] Fatal error:", error?.message || error);
+    return res.status(500).json({ success: false, error: "Internal Server Error", details: error?.message || error });
+  }
 }
+
 
 
 

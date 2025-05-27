@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   try {
     // Folosește endpointul NOU din Wix
-    const response = await axios.get('https://www.luckyfaraonul.com/_functions/get_getUsedTickets', {
+    const response = await axios.get('https://www.luckyfaraonul.com/_functions/getUsedTickets', {
       params: { productId },
       headers: {
         Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`

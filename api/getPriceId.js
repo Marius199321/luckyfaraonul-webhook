@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 export default async function handler(req, res) {
-  const { productId } = req.query;
+  // Acceptă și POST și GET (pentru testare directă în browser)
+  const productId = req.method === 'POST'
+    ? req.body.productId
+    : req.query.productId;
 
   if (!productId) {
     console.error("[getPriceId] Missing productId!");
@@ -9,49 +12,46 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Folosește POST, nu GET!
-    const response = await axios.post(
+    // Cheamă endpointul POST din Wix
+    const wixRes = await axios.post(
       'https://www.luckyfaraonul.com/_functions/getPriceId',
-      { productId }, // body
+      { productId },
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`,
+          'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
         }
       }
     );
 
-    console.log("[getPriceId] Răspuns brut de la Wix:", response.data);
+    console.log("[getPriceId] Răspuns Wix:", wixRes.data);
 
-    if (response.data && response.data.success) {
-      if (!response.data.stripePriceId) {
-        return res.status(404).json({
-          success: false,
-          error: response.data.error || 'stripePriceId not found'
-        });
-      }
+    if (wixRes.data && wixRes.data.success && wixRes.data.stripePriceId) {
       return res.status(200).json({
         success: true,
-        stripePriceId: response.data.stripePriceId
+        stripePriceId: wixRes.data.stripePriceId
       });
     }
 
-    // Caz fallback
-    console.error("[getPriceId] stripePriceId not found! Response:", response.data);
+    // Dacă există răspuns dar nu e success sau nu are stripePriceId
     return res.status(404).json({
       success: false,
-      error: response.data.error || 'stripePriceId not found'
+      error: wixRes.data?.error || 'stripePriceId not found'
     });
 
   } catch (err) {
-    console.error("[getPriceId] Eroare:", err.response?.data || err.message);
+    // Log detaliat pentru debugging
+    const details = err.response?.data || err.message || err;
+    console.error("[getPriceId] Eroare catch:", details);
+
     return res.status(500).json({
       success: false,
       error: 'getPriceId Vercel error',
-      details: err.response?.data || err.message
+      details
     });
   }
 }
+
 
 
 
