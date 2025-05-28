@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const response = await axios.get('https://www.luckyfaraonul.com/_functions/getUsedTickets', {
       params: { productId },
       headers: {
-        Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+        Authorization: `Bearer ${process.env.FUNCTION_SECRET}`
       }
     });
 

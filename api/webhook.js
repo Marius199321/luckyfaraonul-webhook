@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         {
           params: { productId },
           headers: {
-            Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+            Authorization: `Bearer ${process.env.FUNCTION_SECRET}`
           },
           timeout: 15000
         }
@@ -111,7 +111,7 @@ export default async function handler(req, res) {
         'https://www.luckyfaraonul.com/_functions/post_saveTickets',
         tickets,
         {
-          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` },
+          headers: { Authorization: `Bearer ${process.env.FUNCTION_SECRET}` },
           timeout: 15000
         }
       );
@@ -142,7 +142,7 @@ export default async function handler(req, res) {
         'https://www.luckyfaraonul.com/_functions/post_savePurchase',
         purchasePayload,
         {
-          headers: { Authorization: `Bearer ${process.env.WIX_FUNCTION_SECRET}` },
+          headers: { Authorization: `Bearer ${process.env.FUNCTION_SECRET}` },
           timeout: 15000
         }
       );

@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.WIX_FUNCTION_SECRET}`
+          'Authorization': `Bearer ${process.env.FUNCTION_SECRET}`
         }
       }
     );
