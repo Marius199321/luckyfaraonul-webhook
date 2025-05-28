@@ -15,11 +15,13 @@ export default async function handler(req, res) {
     // POST request spre endpointul Wix
     const wixRes = await axios.post(
       'https://www.luckyfaraonul.com/_functions/getPriceId',
-      { productId },
+      {
+        productId,
+        secret: process.env.FUNCTION_SECRET    // Trimite secretul în body
+      },
       {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.FUNCTION_SECRET}`
+          'Content-Type': 'application/json'
         }
       }
     );
@@ -49,6 +51,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
 
 

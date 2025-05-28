@@ -53,16 +53,17 @@ export default async function handler(req, res) {
     const amount = session.amount_total / 100;
     const orderNumber = generateOrderNumber();
 
-    // 1. Get used tickets
+    // 1. Get used tickets (folosește POST și secret în body)
     let usedTickets = [];
     try {
-      const usedRes = await axios.get(
+      const usedRes = await axios.post(
         'https://www.luckyfaraonul.com/_functions/getUsedTickets',
         {
-          params: { productId },
-          headers: {
-            Authorization: `Bearer ${process.env.FUNCTION_SECRET}`
-          },
+          productId,
+          secret: process.env.FUNCTION_SECRET
+        },
+        {
+          headers: { "Content-Type": "application/json" },
           timeout: 15000
         }
       );
@@ -105,13 +106,16 @@ export default async function handler(req, res) {
       };
     });
 
-    // 5. Save tickets
+    // 5. Save tickets (cu secret în body)
     try {
       await axios.post(
         'https://www.luckyfaraonul.com/_functions/post_saveTickets',
-        tickets,
         {
-          headers: { Authorization: `Bearer ${process.env.FUNCTION_SECRET}` },
+          tickets,
+          secret: process.env.FUNCTION_SECRET
+        },
+        {
+          headers: { "Content-Type": "application/json" },
           timeout: 15000
         }
       );
@@ -120,7 +124,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: "Eroare post_saveTickets", details: err.message });
     }
 
-    // 6. Save purchase (no tickets array)
+    // 6. Save purchase (no tickets array, secret in body)
     try {
       const purchasePayload = {
         qty,
@@ -135,14 +139,15 @@ export default async function handler(req, res) {
         orderNumber,
         instantWinnersCount: instantWinners.length,
         createdDate: new Date().toLocaleDateString('en-GB'),
-        createdTime: new Date().toLocaleTimeString('en-GB')
+        createdTime: new Date().toLocaleTimeString('en-GB'),
+        secret: process.env.FUNCTION_SECRET
       };
 
       await axios.post(
         'https://www.luckyfaraonul.com/_functions/post_savePurchase',
         purchasePayload,
         {
-          headers: { Authorization: `Bearer ${process.env.FUNCTION_SECRET}` },
+          headers: { "Content-Type": "application/json" },
           timeout: 15000
         }
       );
@@ -159,6 +164,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: "Internal Server Error", details: error?.message || error });
   }
 }
+
 
 
 
