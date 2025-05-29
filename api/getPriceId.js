@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 export default async function handler(req, res) {
-  // Acceptă POST (pt. flow Stripe) și GET (pt. testare rapidă din browser)
   const productId = req.method === 'POST'
     ? req.body.productId
     : req.query.productId;
@@ -12,45 +11,32 @@ export default async function handler(req, res) {
   }
 
   try {
-    // POST request spre endpointul Wix
     const wixRes = await axios.post(
       'https://www.luckyfaraonul.com/_functions/getPriceId',
       {
         productId,
-        secret: process.env.FUNCTION_SECRET    // Trimite secretul în body
+        secret: process.env.FUNCTION_SECRET
       },
       {
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       }
     );
 
-    console.log("[getPriceId] Răspuns Wix:", wixRes.data);
+    console.log("[getPriceId] Wix response:", wixRes.data);
 
-    if (wixRes.data && wixRes.data.success && wixRes.data.stripePriceId) {
-      return res.status(200).json({
-        success: true,
-        stripePriceId: wixRes.data.stripePriceId
-      });
+    if (wixRes.data.success && wixRes.data.stripePriceId) {
+      return res.status(200).json({ success: true, stripePriceId: wixRes.data.stripePriceId });
     }
 
-    return res.status(404).json({
-      success: false,
-      error: wixRes.data?.error || 'stripePriceId not found'
-    });
+    return res.status(404).json({ success: false, error: wixRes.data.error });
 
   } catch (err) {
     const details = err.response?.data || err.message || err;
-    console.error("[getPriceId] Eroare catch:", details);
-
-    return res.status(500).json({
-      success: false,
-      error: 'getPriceId Vercel error',
-      details
-    });
+    console.error("[getPriceId] Catch error:", details);
+    return res.status(500).json({ success: false, error: 'getPriceId Vercel error', details });
   }
 }
+
 
 
 
