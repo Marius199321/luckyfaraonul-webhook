@@ -17,9 +17,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method Not Allowed' });
   }
 
+  // Stripe signature validation
   const sig = req.headers['stripe-signature'];
-  let event;
-  let buf;
+  let event, buf;
   try {
     buf = await buffer(req);
     event = stripe.webhooks.constructEvent(buf, sig, endpointSecret);
@@ -29,9 +29,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: `Webhook Error: ${err.message}` });
   }
 
-  // Acceptă doar eventul corect
+  // Accept only correct event
   if (event.type !== 'checkout.session.completed') {
-    console.log('[Webhook] Ignorat event:', event.type);
+    console.log('[Webhook] Event ignored:', event.type);
     return res.status(200).json({ success: true, info: "Event type not handled (noop)" });
   }
 
@@ -40,20 +40,26 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: false, error: 'Payment not completed' });
   }
 
-  try {
-    // Date relevante din sesiune
-    const qty = session.metadata?.qty ? Number(session.metadata.qty) : 1;
-    const productId = session.client_reference_id || session.metadata?.productId;
-    const email = session.customer_email;
-    const name = session.metadata?.name || '';
-    const phone = session.metadata?.phone || '';
-    const address = session.metadata?.address || '';
-    const country = session.metadata?.country || '';
-    const productName = session.metadata?.productName || '';
-    const amount = session.amount_total / 100;
-    const orderNumber = generateOrderNumber();
+  // Get data from session
+  const qty = Number(session.metadata?.qty || 1);
+  const productId = session.client_reference_id || session.metadata?.productId;
+  const email = session.customer_email;
+  const name = session.metadata?.name || '';
+  const phone = session.metadata?.phone || '';
+  const address = session.metadata?.address || '';
+  const country = session.metadata?.country || '';
+  const productName = session.metadata?.productName || '';
+  const amount = session.amount_total ? session.amount_total / 100 : 0;
+  const orderNumber = generateOrderNumber();
 
-    // 1. Get used tickets (folosește POST și secret în body)
+  // Fail safe: check for productId
+  if (!productId) {
+    console.error("[Webhook] Missing productId from session");
+    return res.status(400).json({ success: false, error: "Missing productId in Stripe session." });
+  }
+
+  try {
+    // 1. Get used tickets
     let usedTickets = [];
     try {
       const usedRes = await axios.post(
@@ -67,31 +73,33 @@ export default async function handler(req, res) {
           timeout: 15000
         }
       );
-      usedTickets = usedRes.data?.usedTickets || [];
+      if (!usedRes.data?.success) throw new Error(usedRes.data?.error || "Unknown error from getUsedTickets");
+      usedTickets = usedRes.data.usedTickets || [];
     } catch (err) {
-      console.error("[Webhook] Eroare getUsedTickets:", err?.response?.data || err.message);
-      return res.status(500).json({ success: false, error: "Eroare getUsedTickets", details: err.message });
+      console.error("[Webhook] Error in getUsedTickets:", err?.response?.data || err.message);
+      return res.status(500).json({ success: false, error: "Error getting used tickets", details: err.message });
     }
 
-    // 2. Generate tickets
+    // 2. Generate tickets (must be unique)
     let rawTickets = [];
     try {
       rawTickets = generateTickets(qty, usedTickets);
+      if (!Array.isArray(rawTickets) || rawTickets.length !== qty) throw new Error("generateTickets did not return correct number of tickets");
     } catch (err) {
-      console.error("[Webhook] Eroare generateTickets:", err.message);
-      return res.status(500).json({ success: false, error: "Eroare generateTickets", details: err.message });
+      console.error("[Webhook] Error in generateTickets:", err.message);
+      return res.status(500).json({ success: false, error: "Error generating tickets", details: err.message });
     }
 
-    // 3. Instant Win check
+    // 3. Check for Instant Win
     let instantWinners = [];
     try {
       instantWinners = await instantWinChecker(rawTickets, productId);
     } catch (err) {
-      console.warn("[Webhook] instantWinChecker Error:", err.message);
-      // Nu bloca flow-ul, doar log
+      console.warn("[Webhook] instantWinChecker error:", err.message);
+      // Don't block the flow if Instant Win fails
     }
 
-    // 4. Format tickets array
+    // 4. Format ticket objects
     const tickets = rawTickets.map(ticketNumber => {
       const win = instantWinners.find(w => w.ticketNumber === ticketNumber);
       return {
@@ -106,9 +114,9 @@ export default async function handler(req, res) {
       };
     });
 
-    // 5. Save tickets (cu secret în body)
+    // 5. Save tickets in Wix
     try {
-      await axios.post(
+      const saveTicketsRes = await axios.post(
         'https://www.luckyfaraonul.com/_functions/post_saveTickets',
         {
           tickets,
@@ -119,12 +127,13 @@ export default async function handler(req, res) {
           timeout: 15000
         }
       );
+      if (!saveTicketsRes.data?.success) throw new Error(saveTicketsRes.data?.error || "Unknown error from post_saveTickets");
     } catch (err) {
-      console.error("[Webhook] Eroare post_saveTickets:", err?.response?.data || err.message);
-      return res.status(500).json({ success: false, error: "Eroare post_saveTickets", details: err.message });
+      console.error("[Webhook] Error in post_saveTickets:", err?.response?.data || err.message);
+      return res.status(500).json({ success: false, error: "Error saving tickets", details: err.message });
     }
 
-    // 6. Save purchase (no tickets array, secret in body)
+    // 6. Save purchase in Wix
     try {
       const purchasePayload = {
         qty,
@@ -143,7 +152,7 @@ export default async function handler(req, res) {
         secret: process.env.FUNCTION_SECRET
       };
 
-      await axios.post(
+      const savePurchaseRes = await axios.post(
         'https://www.luckyfaraonul.com/_functions/post_savePurchase',
         purchasePayload,
         {
@@ -151,13 +160,14 @@ export default async function handler(req, res) {
           timeout: 15000
         }
       );
+      if (!savePurchaseRes.data?.success) throw new Error(savePurchaseRes.data?.error || "Unknown error from post_savePurchase");
     } catch (err) {
-      console.error("[Webhook] Eroare post_savePurchase:", err?.response?.data || err.message);
-      return res.status(500).json({ success: false, error: "Eroare post_savePurchase", details: err.message });
+      console.error("[Webhook] Error in post_savePurchase:", err?.response?.data || err.message);
+      return res.status(500).json({ success: false, error: "Error saving purchase", details: err.message });
     }
 
-    // Succes!
-    console.log("[Webhook] Flow complet salvat cu succes pentru orderNumber:", orderNumber);
+    // Success!
+    console.log("[Webhook] Order completed and saved for orderNumber:", orderNumber);
     return res.status(200).json({ success: true, received: true, orderNumber });
   } catch (error) {
     console.error("[Webhook] Fatal error:", error?.message || error);
