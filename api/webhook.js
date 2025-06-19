@@ -77,27 +77,35 @@ export default async function handler(req, res) {
         }
       );
 
+      // Asigură-te că ai mereu date JSON la response
+      let responseData = usedRes.data;
+      if (typeof responseData === "string") {
+        try { responseData = JSON.parse(responseData); } catch (e) {}
+      }
+
       console.log("[Webhook] Raspuns primit de la getUsedTickets:", {
         status: usedRes.status,
-        data: usedRes.data
+        data: responseData
       });
 
-      if (!usedRes.data?.success) {
-        console.error("[Webhook] getUsedTickets NU a returnat success:", usedRes.data);
-        throw new Error(usedRes.data?.error || "Unknown error from getUsedTickets");
+      if (!responseData?.success) {
+        console.error("[Webhook] getUsedTickets NU a returnat success:", responseData);
+        throw new Error(responseData?.error || "Unknown error from getUsedTickets");
       }
-      usedTickets = usedRes.data.usedTickets || [];
+      usedTickets = responseData.usedTickets || [];
     } catch (err) {
       console.error("[Webhook] Error in getUsedTickets:", {
         message: err.message,
         responseData: err?.response?.data,
-        status: err?.response?.status
+        status: err?.response?.status,
+        stack: err?.stack
       });
       return res.status(500).json({
         success: false,
         error: "Error getting used tickets",
         details: err.message,
-        extra: err?.response?.data
+        extra: err?.response?.data,
+        stack: err?.stack
       });
     }
 
@@ -107,8 +115,8 @@ export default async function handler(req, res) {
       rawTickets = generateTickets(qty, usedTickets);
       if (!Array.isArray(rawTickets) || rawTickets.length !== qty) throw new Error("generateTickets did not return correct number of tickets");
     } catch (err) {
-      console.error("[Webhook] Error in generateTickets:", err.message);
-      return res.status(500).json({ success: false, error: "Error generating tickets", details: err.message });
+      console.error("[Webhook] Error in generateTickets:", err.message, err.stack);
+      return res.status(500).json({ success: false, error: "Error generating tickets", details: err.message, stack: err.stack });
     }
 
     // 3. Check for Instant Win
@@ -116,7 +124,7 @@ export default async function handler(req, res) {
     try {
       instantWinners = await instantWinChecker(rawTickets, productId);
     } catch (err) {
-      console.warn("[Webhook] instantWinChecker error:", err.message);
+      console.warn("[Webhook] instantWinChecker error:", err.message, err.stack);
       // Don't block the flow if Instant Win fails
     }
 
@@ -150,8 +158,8 @@ export default async function handler(req, res) {
       );
       if (!saveTicketsRes.data?.success) throw new Error(saveTicketsRes.data?.error || "Unknown error from post_saveTickets");
     } catch (err) {
-      console.error("[Webhook] Error in post_saveTickets:", err?.response?.data || err.message);
-      return res.status(500).json({ success: false, error: "Error saving tickets", details: err.message });
+      console.error("[Webhook] Error in post_saveTickets:", err?.response?.data || err.message, err.stack);
+      return res.status(500).json({ success: false, error: "Error saving tickets", details: err.message, stack: err.stack });
     }
 
     // 6. Save purchase in Wix
@@ -183,18 +191,19 @@ export default async function handler(req, res) {
       );
       if (!savePurchaseRes.data?.success) throw new Error(savePurchaseRes.data?.error || "Unknown error from post_savePurchase");
     } catch (err) {
-      console.error("[Webhook] Error in post_savePurchase:", err?.response?.data || err.message);
-      return res.status(500).json({ success: false, error: "Error saving purchase", details: err.message });
+      console.error("[Webhook] Error in post_savePurchase:", err?.response?.data || err.message, err.stack);
+      return res.status(500).json({ success: false, error: "Error saving purchase", details: err.message, stack: err.stack });
     }
 
     // Success!
     console.log("[Webhook] Order completed and saved for orderNumber:", orderNumber);
     return res.status(200).json({ success: true, received: true, orderNumber });
   } catch (error) {
-    console.error("[Webhook] Fatal error:", error?.message || error);
-    return res.status(500).json({ success: false, error: "Internal Server Error", details: error?.message || error });
+    console.error("[Webhook] Fatal error:", error?.message || error, error?.stack);
+    return res.status(500).json({ success: false, error: "Internal Server Error", details: error?.message || error, stack: error?.stack });
   }
 }
+
 
 
 
