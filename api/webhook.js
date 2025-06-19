@@ -62,22 +62,43 @@ export default async function handler(req, res) {
     // 1. Get used tickets
     let usedTickets = [];
     try {
+      const postBody = {
+        productId,
+        secret: (process.env.FUNCTION_SECRET || "").trim()
+      };
+      console.log("[Webhook] Trimit request la getUsedTickets:", postBody);
+
       const usedRes = await axios.post(
         'https://www.luckyfaraonul.com/_functions/getUsedTickets',
-        {
-          productId,
-          secret: process.env.FUNCTION_SECRET
-        },
+        postBody,
         {
           headers: { "Content-Type": "application/json" },
           timeout: 15000
         }
       );
-      if (!usedRes.data?.success) throw new Error(usedRes.data?.error || "Unknown error from getUsedTickets");
+
+      console.log("[Webhook] Raspuns primit de la getUsedTickets:", {
+        status: usedRes.status,
+        data: usedRes.data
+      });
+
+      if (!usedRes.data?.success) {
+        console.error("[Webhook] getUsedTickets NU a returnat success:", usedRes.data);
+        throw new Error(usedRes.data?.error || "Unknown error from getUsedTickets");
+      }
       usedTickets = usedRes.data.usedTickets || [];
     } catch (err) {
-      console.error("[Webhook] Error in getUsedTickets:", err?.response?.data || err.message);
-      return res.status(500).json({ success: false, error: "Error getting used tickets", details: err.message });
+      console.error("[Webhook] Error in getUsedTickets:", {
+        message: err.message,
+        responseData: err?.response?.data,
+        status: err?.response?.status
+      });
+      return res.status(500).json({
+        success: false,
+        error: "Error getting used tickets",
+        details: err.message,
+        extra: err?.response?.data
+      });
     }
 
     // 2. Generate tickets (must be unique)
@@ -120,7 +141,7 @@ export default async function handler(req, res) {
         'https://www.luckyfaraonul.com/_functions/post_saveTickets',
         {
           tickets,
-          secret: process.env.FUNCTION_SECRET
+          secret: (process.env.FUNCTION_SECRET || "").trim()
         },
         {
           headers: { "Content-Type": "application/json" },
@@ -149,7 +170,7 @@ export default async function handler(req, res) {
         instantWinnersCount: instantWinners.length,
         createdDate: new Date().toLocaleDateString('en-GB'),
         createdTime: new Date().toLocaleTimeString('en-GB'),
-        secret: process.env.FUNCTION_SECRET
+        secret: (process.env.FUNCTION_SECRET || "").trim()
       };
 
       const savePurchaseRes = await axios.post(
